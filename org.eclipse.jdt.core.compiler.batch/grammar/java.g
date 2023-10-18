@@ -122,6 +122,7 @@ $Terminals
 	BeginCaseElement
 	RestrictedIdentifierWhen
 	BeginRecordPattern
+	Underscore
 
 --    BodyMarker
 
@@ -833,6 +834,11 @@ VariableDeclaratorId ::= 'Identifier' Dimsopt
 /:$readableName VariableDeclaratorId:/
 /:$recovery_template Identifier:/
 
+UnnamedVariable ::= 'Underscore'
+/:$readableName UnnamedVariable:/
+/.$putCase consumeUnnamedVariable(); $break ./
+/:$recovery_template Identifier:/
+
 VariableInitializer -> Expression
 VariableInitializer -> ArrayInitializer
 /:$readableName VariableInitializer:/
@@ -932,6 +938,7 @@ FormalParameter ::= Modifiersopt Type @308... TypeAnnotations '...' VariableDecl
 /:$recovery_template Identifier Identifier:/
 
 CatchFormalParameter ::= Modifiersopt CatchType VariableDeclaratorId
+CatchFormalParameter ::= Modifiersopt CatchType UnnamedVariable
 /.$putCase consumeCatchFormalParameter(); $break ./
 /:$readableName FormalParameter:/
 /:$recovery_template Identifier Identifier:/
@@ -1701,6 +1708,7 @@ TrailingSemiColon ::= ';'
 /:$compliance 1.7:/
 
 Resource ::= Type PushModifiers VariableDeclaratorId EnterVariable '=' ForceNoDiet VariableInitializer RestoreDiet ExitVariableWithInitialization
+Resource ::= Type PushModifiers UnnamedVariable EnterVariable '=' ForceNoDiet VariableInitializer RestoreDiet ExitVariableWithInitialization
 /.$putCase consumeResourceAsLocalVariableDeclaration(); $break ./
 /:$readableName Resource:/
 /:$compliance 1.7:/
