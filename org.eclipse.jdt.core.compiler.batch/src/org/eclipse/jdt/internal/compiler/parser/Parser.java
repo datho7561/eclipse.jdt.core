@@ -2464,6 +2464,12 @@ protected void consumeCatches() {
 	// Catches ::= Catches CatchClause
 	optimizedConcatNodeLists();
 }
+
+protected void consumeCatchFormalParameterExplicitUnderscore() {
+	pushOnIntStack(0);
+	consumeCatchFormalParameter();
+}
+
 protected void consumeCatchFormalParameter() {
 	// CatchFormalParameter ::= Modifiersopt CatchType VariableDeclaratorId
 	this.identifierLengthPtr--;
@@ -7227,8 +7233,12 @@ protected void consumeRule(int act) {
 		    consumeFormalParameter(true);
 			break;
 
-    case 279 : if (DEBUG) { System.out.println("CatchFormalParameter ::= Modifiersopt CatchType..."); }  //$NON-NLS-1$
+    case 278 : if (DEBUG) { System.out.println("CatchFormalParameter ::= Modifiersopt CatchType..."); }  //$NON-NLS-1$
 		    consumeCatchFormalParameter();
+			break;
+
+    case 279 : if (DEBUG) { System.out.println("CatchFormalParameter ::= Modifiersopt CatchType..."); }  //$NON-NLS-1$
+		    consumeCatchFormalParameterExplicitUnderscore();
 			break;
 
     case 280 : if (DEBUG) { System.out.println("CatchType ::= UnionType"); }  //$NON-NLS-1$

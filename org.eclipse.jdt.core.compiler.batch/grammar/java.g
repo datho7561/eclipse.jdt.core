@@ -938,8 +938,12 @@ FormalParameter ::= Modifiersopt Type @308... TypeAnnotations '...' VariableDecl
 /:$recovery_template Identifier Identifier:/
 
 CatchFormalParameter ::= Modifiersopt CatchType VariableDeclaratorId
-CatchFormalParameter ::= Modifiersopt CatchType UnnamedVariable
 /.$putCase consumeCatchFormalParameter(); $break ./
+/:$readableName FormalParameter:/
+/:$recovery_template Identifier Identifier:/
+
+CatchFormalParameter ::= Modifiersopt CatchType UnnamedVariable
+/.$putCase consumeCatchFormalParameterExplicitUnderscore(); $break ./
 /:$readableName FormalParameter:/
 /:$recovery_template Identifier Identifier:/
 
