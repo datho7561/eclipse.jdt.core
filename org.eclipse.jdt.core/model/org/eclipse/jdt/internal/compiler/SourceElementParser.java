@@ -290,8 +290,8 @@ protected void consumeAnnotationTypeDeclarationHeaderNameWithTypeParameters() {
 		rememberCategories();
 }
 @Override
-protected void consumeCatchFormalParameter() {
-	super.consumeCatchFormalParameter();
+protected void consumeCatchFormalParameter(boolean isUnused) {
+	super.consumeCatchFormalParameter(isUnused);
 
 	// Flush comments prior to this formal parameter so the declarationSourceStart of the following parameter
 	// is correctly set (see bug 80904)

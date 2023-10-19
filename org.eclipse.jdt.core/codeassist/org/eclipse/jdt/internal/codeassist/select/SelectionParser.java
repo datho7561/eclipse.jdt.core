@@ -450,9 +450,9 @@ protected void consumeCastExpressionWithQualifiedGenericsArray() {
 	super.consumeCastExpressionWithQualifiedGenericsArray();
 }
 @Override
-protected void consumeCatchFormalParameter() {
+protected void consumeCatchFormalParameter(boolean isUnusedVariable) {
 	if (this.indexOfAssistIdentifier() < 0) {
-		super.consumeCatchFormalParameter();
+		super.consumeCatchFormalParameter(isUnusedVariable);
 		if((!this.diet || this.dietInt != 0) && this.astPtr > -1) {
 			Argument argument = (Argument) this.astStack[this.astPtr];
 			if(argument.type == this.assistNode) {
@@ -465,7 +465,9 @@ protected void consumeCatchFormalParameter() {
 		this.identifierLengthPtr--;
 		char[] identifierName = this.identifierStack[this.identifierPtr];
 		long namePositions = this.identifierPositionStack[this.identifierPtr--];
-		this.intPtr--; // dimension from the variabledeclaratorid
+		if( isUnusedVariable ) {
+			this.intPtr--; // dimension from the variabledeclaratorid
+		}
 		TypeReference type = (TypeReference) this.astStack[this.astPtr--];
 		this.astLengthPtr --;
 		int modifierPositions = this.intStack[this.intPtr--];
