@@ -2499,9 +2499,9 @@ protected void consumeCastExpressionLL1() {
 	super.consumeCastExpressionLL1();
 }
 @Override
-protected void consumeCatchFormalParameter() {
+protected void consumeCatchFormalParameter(boolean isUnusedVariable) {
 	if (this.indexOfAssistIdentifier() < 0) {
-		super.consumeCatchFormalParameter();
+		super.consumeCatchFormalParameter(isUnusedVariable);
 		if (this.pendingAnnotation != null) {
 			this.pendingAnnotation.potentialAnnotatedNode = this.astStack[this.astPtr];
 			this.pendingAnnotation = null;
@@ -2510,7 +2510,9 @@ protected void consumeCatchFormalParameter() {
 		this.identifierLengthPtr--;
 		char[] identifierName = this.identifierStack[this.identifierPtr];
 		long namePositions = this.identifierPositionStack[this.identifierPtr--];
-		this.intPtr--; // dimension from the variabledeclaratorid
+		if( isUnusedVariable ) {
+			this.intPtr--; // dimension from the variabledeclaratorid
+		}
 		TypeReference type = (TypeReference) this.astStack[this.astPtr--];
 		this.intPtr -= 2;
 		CompletionOnArgumentName arg =

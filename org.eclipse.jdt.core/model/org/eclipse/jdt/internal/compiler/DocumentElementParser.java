@@ -98,7 +98,7 @@ public void checkComment() {
  * INTERNAL USE-ONLY
  */
 @Override
-protected void consumeCatchFormalParameter() {
+protected void consumeCatchFormalParameter(boolean isUnusedVariable) {
 	// FormalParameter ::= Type VariableDeclaratorId ==> false
 	// FormalParameter ::= Modifiers Type VariableDeclaratorId ==> true
 	/*
@@ -116,7 +116,7 @@ protected void consumeCatchFormalParameter() {
 	long namePositions = this.identifierPositionStack[this.identifierPtr--];
 	this.intPtr--; // dimension from the variabledeclaratorid
 	TypeReference type = (TypeReference) this.astStack[this.astPtr--];
-	this.intPtr -= 3;
+	this.intPtr -= (isUnusedVariable ? 2 : 3);
 	Argument arg =
 		new Argument(
 			parameterName,

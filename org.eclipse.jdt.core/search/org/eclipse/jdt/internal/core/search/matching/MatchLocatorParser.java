@@ -291,8 +291,8 @@ protected void consumeCastExpressionWithQualifiedGenericsArray() {
 	}
 }
 @Override
-protected void consumeCatchFormalParameter() {
-	super.consumeCatchFormalParameter();
+protected void consumeCatchFormalParameter(boolean isUnused) {
+	super.consumeCatchFormalParameter(isUnused);
 	this.patternLocator.match((LocalDeclaration) this.astStack[this.astPtr], this.nodeSet);
 }
 

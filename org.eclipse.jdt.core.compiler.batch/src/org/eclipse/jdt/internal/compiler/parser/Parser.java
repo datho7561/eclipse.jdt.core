@@ -250,6 +250,10 @@ public class Parser implements TerminalTokens, ParserBasicInformation, Conflicte
 						compliance = ClassFileConstants.JDK18;
 					}  else if("19".equals(token)) { //$NON-NLS-1$
 						compliance = ClassFileConstants.JDK19;
+					}  else if("20".equals(token)) { //$NON-NLS-1$
+						compliance = ClassFileConstants.JDK20;
+					}  else if("21".equals(token)) { //$NON-NLS-1$
+						compliance = ClassFileConstants.JDK21;
 					} else if("recovery".equals(token)) { //$NON-NLS-1$
 						compliance = ClassFileConstants.JDK_DEFERRED;
 					}
@@ -13337,9 +13341,9 @@ protected void pushIdentifier(char [] identifier, long position) {
 			stackLength);
 	}
 	this.identifierLengthStack[this.identifierLengthPtr] = 1;
-//	if (this.parsingJava8Plus && !this.parsingJava21Plus && identifier.length == 1 && identifier[0] == '_' && !this.processingLambdaParameterList) {
-//		problemReporter().illegalUseOfUnderscoreAsAnIdentifier((int) (position >>> 32), (int) position, this.parsingJava9Plus);
-//	}
+	if (this.parsingJava8Plus && !this.parsingJava21Plus && identifier.length == 1 && identifier[0] == '_' && !this.processingLambdaParameterList) {
+		problemReporter().illegalUseOfUnderscoreAsAnIdentifier((int) (position >>> 32), (int) position, this.parsingJava9Plus);
+	}
 }
 protected void pushIdentifier() {
 	/*push the consumeToken on the identifier stack.
