@@ -465,7 +465,7 @@ protected void consumeCatchFormalParameter(boolean isUnusedVariable) {
 		this.identifierLengthPtr--;
 		char[] identifierName = this.identifierStack[this.identifierPtr];
 		long namePositions = this.identifierPositionStack[this.identifierPtr--];
-		if( isUnusedVariable ) {
+		if( !isUnusedVariable ) {
 			this.intPtr--; // dimension from the variabledeclaratorid
 		}
 		TypeReference type = (TypeReference) this.astStack[this.astPtr--];
