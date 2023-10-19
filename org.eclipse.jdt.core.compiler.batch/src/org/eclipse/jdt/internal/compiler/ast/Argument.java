@@ -234,7 +234,7 @@ public class Argument extends LocalDeclaration {
 			}
 		}
 		Binding existingVariable = scope.getBinding(this.name, Binding.VARIABLE, this, false /*do not resolve hidden field*/);
-		if (existingVariable != null && existingVariable.isValidBinding()){
+		if (existingVariable != null && existingVariable.isValidBinding() && (this.name.length != 1 || this.name[0] != '_' /* TODO: source level < 21 || preview features disabled */)){
 			if (existingVariable instanceof LocalVariableBinding && this.hiddenVariableDepth == 0) {
 				scope.problemReporter().redefineArgument(this);
 			} else {
