@@ -942,6 +942,7 @@ CatchFormalParameter ::= Modifiersopt CatchType VariableDeclaratorId
 /:$recovery_template Identifier Identifier:/
 CatchFormalParameter ::= Modifiersopt CatchType UnnamedVariable
 /.$putCase consumeCatchFormalParameter(true); $break ./
+/:$compliance 21:/
 /:$readableName FormalParameter:/
 /:$recovery_template Identifier Identifier:/
 

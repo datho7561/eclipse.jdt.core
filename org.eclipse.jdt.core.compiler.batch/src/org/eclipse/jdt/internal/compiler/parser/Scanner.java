@@ -3253,7 +3253,7 @@ public int scanIdentifierOrKeyword() {
 		//have a length which is <= 12...but there are lots of identifier with
 		//only one char....
 		if ((length = this.currentPosition - this.startPosition) == 1) {
-			if (/*this.sourceLevel == ClassFileConstants.JDK21 &&*/ this.source[this.startPosition] == '_') {
+			if (this.sourceLevel >= ClassFileConstants.JDK21 && this.previewEnabled && this.source[this.startPosition] == '_') {
 				return TokenNameUnderscore;
 			}
 			return TokenNameIdentifier;
