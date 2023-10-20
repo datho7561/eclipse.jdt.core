@@ -510,11 +510,4 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext, Fl
 		return this.type != null && this.type.isTypeNameVar(scope);
 	}
 
-	/**
-	 * @param scope used to determine source level
-	 */
-	public boolean isUnused(BlockScope scope) {
-		return this.name.length == 1 && this.name[0] == '_' && scope.compilerOptions().sourceLevel >= ClassFileConstants.JDK21 && scope.compilerOptions().enablePreviewFeatures;
-	}
-
 }
