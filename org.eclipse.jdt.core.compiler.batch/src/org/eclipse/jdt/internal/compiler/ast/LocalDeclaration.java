@@ -299,7 +299,7 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext, Fl
 		}
 
 		Binding existingVariable = scope.getBinding(this.name, Binding.VARIABLE, this, false /*do not resolve hidden field*/);
-		if (existingVariable != null && existingVariable.isValidBinding()){
+		if (existingVariable != null && existingVariable.isValidBinding() && !this.isUnused(scope)){
 			boolean localExists = existingVariable instanceof LocalVariableBinding;
 			if (localExists && (this.bits & ASTNode.ShadowsOuterLocal) != 0 && scope.isLambdaSubscope() && this.hiddenVariableDepth == 0) {
 				scope.problemReporter().lambdaRedeclaresLocal(this);
@@ -508,6 +508,13 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext, Fl
 
 	public boolean isTypeNameVar(Scope scope) {
 		return this.type != null && this.type.isTypeNameVar(scope);
+	}
+
+	/**
+	 * @param scope used to determine source level
+	 */
+	public boolean isUnused(BlockScope scope) {
+		return this.name.length == 1 && this.name[0] == '_' && scope.compilerOptions().sourceLevel >= ClassFileConstants.JDK21 && scope.compilerOptions().enablePreviewFeatures;
 	}
 
 }

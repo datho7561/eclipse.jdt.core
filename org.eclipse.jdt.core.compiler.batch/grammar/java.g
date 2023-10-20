@@ -809,11 +809,17 @@ VariableDeclarators ::= VariableDeclarators ',' VariableDeclarator
 
 VariableDeclarator ::= VariableDeclaratorId EnterVariable ExitVariableWithoutInitialization
 VariableDeclarator ::= VariableDeclaratorId EnterVariable '=' ForceNoDiet VariableInitializer RestoreDiet ExitVariableWithInitialization
+VariableDeclarator ::= UnnamedVariable EnterUnnamedVariable ExitVariableWithoutInitialization
+VariableDeclarator ::= UnnamedVariable EnterUnnamedVariable '=' ForceNoDiet VariableInitializer RestoreDiet ExitVariableWithInitialization
 /:$readableName VariableDeclarator:/
 /:$recovery_template Identifier:/
 
 EnterVariable ::= $empty
 /.$putCase consumeEnterVariable(); $break ./
+/:$readableName EnterVariable:/
+
+EnterUnnamedVariable ::= $empty
+/.$putCase consumeEnterUnnamedVariable(); $break ./
 /:$readableName EnterVariable:/
 
 ExitVariableWithInitialization ::= $empty
