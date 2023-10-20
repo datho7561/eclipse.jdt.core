@@ -820,7 +820,7 @@ EnterVariable ::= $empty
 
 EnterUnnamedVariable ::= $empty
 /.$putCase consumeEnterUnnamedVariable(); $break ./
-/:$readableName EnterVariable:/
+/:$readableName EnterUnnamedVariable:/
 
 ExitVariableWithInitialization ::= $empty
 /.$putCase consumeExitVariableWithInitialization(); $break ./
@@ -1715,6 +1715,16 @@ TrailingSemiColon ::= ';'
 /.$putCase consumeResourceOptionalTrailingSemiColon(true); $break ./
 /:$readableName ;:/
 /:$compliance 1.7:/
+
+Resource ::= Type PushModifiers UnnamedVariable EnterUnnamedVariable '=' ForceNoDiet VariableInitializer RestoreDiet ExitVariableWithInitialization
+/.$putCase consumeResourceAsLocalVariableDeclaration(); $break ./
+/:$readableName Resource:/
+/:$compliance 21:/
+
+Resource ::= Modifiers Type PushRealModifiers UnnamedVariable EnterUnnamedVariable '=' ForceNoDiet VariableInitializer RestoreDiet ExitVariableWithInitialization
+/.$putCase consumeResourceAsLocalVariableDeclaration(); $break ./
+/:$readableName Resource:/
+/:$compliance 21:/
 
 Resource ::= Type PushModifiers VariableDeclaratorId EnterVariable '=' ForceNoDiet VariableInitializer RestoreDiet ExitVariableWithInitialization
 /.$putCase consumeResourceAsLocalVariableDeclaration(); $break ./
