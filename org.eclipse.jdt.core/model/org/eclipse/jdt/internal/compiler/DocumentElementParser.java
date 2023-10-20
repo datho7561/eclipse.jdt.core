@@ -118,7 +118,7 @@ protected void consumeCatchFormalParameter(boolean isUnusedVariable) {
 		this.intPtr--; // dimension from the variabledeclaratorid
 	}
 	TypeReference type = (TypeReference) this.astStack[this.astPtr--];
-	this.intPtr -= 3;
+	this.intPtr -= 2;
 	Argument arg =
 		new Argument(
 			parameterName,
