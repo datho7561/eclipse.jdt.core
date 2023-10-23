@@ -1062,7 +1062,10 @@ public abstract class ASTVisitor {
 	public boolean visit(SwitchExpression switchExpression, BlockScope blockScope) {
 		return true; // do nothing by default, keep traversing
 	}
-	public  boolean visit(RecordComponent recordComponent, BlockScope scope) {
+	public boolean visit(RecordComponent recordComponent, BlockScope scope) {
+		return true; // do nothing by default, keep traversing
+	}
+	public boolean visit(UnnamedPattern unnamedPattern, BlockScope scope) {
 		return true; // do nothing by default, keep traversing
 	}
 }

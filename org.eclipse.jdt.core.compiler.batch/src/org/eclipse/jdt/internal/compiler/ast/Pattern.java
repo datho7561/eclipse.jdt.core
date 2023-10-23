@@ -39,6 +39,8 @@ public abstract class Pattern extends Expression {
 
 	public int nestingLevel = 0;
 
+	public int index = -1;
+
 	@Override
 	public boolean containsPatternVariable() {
 		class PatternVariablesVisitor extends ASTVisitor {
@@ -50,6 +52,12 @@ public abstract class Pattern extends Expression {
 				 this.hasPatternVar = typePattern.local != null;
 				 this.typeElidedVar |= typePattern.getType().isTypeNameVar(blockScope);
 				 return !(this.hasPatternVar && this.typeElidedVar);
+			}
+
+			@Override
+			public boolean visit(UnnamedPattern unnamedPattern, BlockScope blockScope) {
+				this.hasPatternVar = true;
+				return false;
 			}
  		}
 

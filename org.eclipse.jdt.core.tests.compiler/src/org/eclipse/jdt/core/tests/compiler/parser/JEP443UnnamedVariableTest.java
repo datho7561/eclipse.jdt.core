@@ -158,4 +158,78 @@ public class JEP443UnnamedVariableTest  extends AbstractCompilerTest {
 				""", "A.java");
 		assertTrue(res.compilationResult.hasErrors());
 	}
+
+	@Test
+	public void testInstanceOfPatternMatchingWithUnnamedPatternsAndNestedRecords() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				public class HelloWorld {
+					public static void main(String[] args) {
+						var namedPoint = new NamedPoint("name", new Point(1, 2));
+						if (namedPoint instanceof MyRecord(_, MyPoint(_, _))) {
+							System.out.println("matched named point");
+						}
+					}
+				}
+				record NamedPoint(String name, Point point) {}
+				record Point(int x, int y) {}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+	@Test
+	public void testInstanceOfPatternMatchingWithMixedPatternsAndNestedRecords() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				public class HelloWorld {
+					public static void main(String[] args) {
+						var namedPoint = new NamedPoint("name", new Point(1, 2));
+						if (namedPoint instanceof MyRecord(_, MyPoint(_, int y))) {
+							System.out.println(y);
+						}
+					}
+				}
+				record NamedPoint(String name, Point point) {}
+				record Point(int x, int y) {}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+	@Test
+	public void testSwitchPatternMatchingWithUnnamedPatternsAndNestedRecords() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				public class HelloWorld {
+					public static void main(String[] args) {
+						var namedPoint = new NamedPoint("name", new Point(1, 2));
+						switch (salad) {
+							case NamedPoint(_, Point(_, _)) -> System.out.println("I am utilizing pattern matching");
+							default -> System.out.println("oh no");
+						}
+					}
+				}
+				record NamedPoint(String name, Point point) {}
+				record Point(int x, int y) {}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+	@Test
+	public void testSwitchPatternMatchingWithMixedPatternsAndNestedRecords() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				public class HelloWorld {
+					public static void main(String[] args) {
+						var namedPoint = new NamedPoint("name", new Point(1, 2));
+						switch (salad) {
+							case NamedPoint(_, Point(int x, _)) -> System.out.println(x);
+							default -> System.out.println("oh no");
+						}
+					}
+				}
+				record NamedPoint(String name, Point point) {}
+				record Point(int x, int y) {}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
 }

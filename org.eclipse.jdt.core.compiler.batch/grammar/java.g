@@ -1316,28 +1316,41 @@ TypePattern ::= Modifiersopt Type 'Identifier'
 -- 20 preview feature : record patterns
 -----------------------------------------------
 
-RecordPattern ::= Modifiersopt ReferenceType PushLPAREN PatternListopt PushRPAREN
+RecordPattern ::= Modifiersopt ReferenceType PushLPAREN ComponentPatternListopt PushRPAREN
 /.$putCase consumeRecordPattern(); $break ./
 /:$readableName RecordPattern:/
 /:$compliance 20:/
 
-PatternListopt ::=  $empty
+ComponentPatternListopt ::=  $empty
 /.$putCase consumePatternListopt(); $break ./
-/:$readableName PatternListopt:/
+/:$readableName ComponentPatternListopt:/
 /:$compliance 20:/
 
-PatternListopt -> PatternList
-/:$readableName PatternListopt:/
+ComponentPatternListopt -> ComponentPatternList
+/:$readableName ComponentPatternListopt:/
 /:$compliance 20:/
 
-PatternList -> Pattern
-PatternList ::= PatternList ',' Pattern
+ComponentPatternList -> ComponentPattern
+ComponentPatternList ::= ComponentPatternList ',' ComponentPattern
 /.$putCase consumePatternList();  $break ./
-/:$readableName PatternList:/
+/:$readableName ComponentPatternList:/
 /:$compliance 20:/
 
 -----------------------------------------------
 -- 20 preview feature : end of record patterns
+-----------------------------------------------
+
+-----------------------------------------------
+-- 21 preview feature : unnamed record patterns
+-----------------------------------------------
+ComponentPattern -> Pattern
+ComponentPattern -> UnnamedPattern
+
+UnnamedPattern ::= '_'
+/.$putCase consumeUnnamedPattern();  $break ./
+/:$compliance 21:/
+-----------------------------------------------
+-- 21 preview feature : end of unnamed record patterns
 -----------------------------------------------
 
 ConstantDeclaration -> FieldDeclaration

@@ -34,11 +34,10 @@ import org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
 import org.eclipse.jdt.internal.compiler.lookup.TypeBindingVisitor;
 import org.eclipse.jdt.internal.compiler.lookup.TypeVariableBinding;
 
-public class TypePattern extends Pattern {
+public class TypePattern extends VariablePattern {
 
 	public LocalDeclaration local;
 	Expression expression;
-	public int index = -1; // denoting position
 
 	public TypePattern(LocalDeclaration local) {
 		this.local = local;
@@ -286,5 +285,9 @@ public class TypePattern extends Pattern {
 	@Override
 	public StringBuffer printExpression(int indent, StringBuffer output) {
 		return this.local != null ? this.local.printAsExpression(indent, output) : output;
+	}
+	@Override
+	public LocalDeclaration getLocal() {
+		return this.local;
 	}
 }
