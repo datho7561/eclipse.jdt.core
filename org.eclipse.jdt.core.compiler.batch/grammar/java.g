@@ -2519,6 +2519,14 @@ EnhancedForStatementHeaderInit ::= 'for' '(' Modifiers Type PushRealModifiers Id
 /.$putCase consumeEnhancedForStatementHeaderInit(true); $break ./
 /:$readableName EnhancedForStatementHeaderInit:/
 
+EnhancedForStatementHeaderInit ::= 'for' '(' Type PushModifiers UnnamedVariable
+/.$putCase consumeEnhancedForStatementHeaderInitUnnamed(false); $break ./
+/:$readableName EnhancedForStatementHeaderInit:/
+
+EnhancedForStatementHeaderInit ::= 'for' '(' Modifiers Type PushRealModifiers UnnamedVariable
+/.$putCase consumeEnhancedForStatementHeaderInitUnnamed(true); $break ./
+/:$readableName EnhancedForStatementHeaderInit:/
+
 EnhancedForStatementHeader ::= EnhancedForStatementHeaderInit ':' Expression ')'
 /.$putCase consumeEnhancedForStatementHeader(); $break ./
 /:$readableName EnhancedForStatementHeader:/
