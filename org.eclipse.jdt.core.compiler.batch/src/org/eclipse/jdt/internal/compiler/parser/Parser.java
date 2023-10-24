@@ -4386,6 +4386,14 @@ protected void consumeForInit() {
 	pushOnAstLengthStack(-1);
 	this.forStartPosition = 0;
 }
+
+protected void consumeUnnamedFormalParameter(boolean isVarArgs) {
+	pushOnIntStack(0); // For annotation / dimensions
+	pushOnIntStack(1); // For designating that we are not explicit-this
+	consumeFormalParameter(isVarArgs);
+}
+
+
 protected void consumeFormalParameter(boolean isVarArgs) {
 	// FormalParameter ::= Modifiersopt Type VariableDeclaratorIdOrThis
 	// FormalParameter ::= Modifiersopt Type PushZeroTypeAnnotations '...' VariableDeclaratorIdOrThis

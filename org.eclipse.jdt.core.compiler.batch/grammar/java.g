@@ -925,6 +925,36 @@ ConstructorHeaderName ::= Modifiersopt 'Identifier' '('
 /.$putCase consumeConstructorHeaderName(); $break ./
 /:$readableName ConstructorHeaderName:/
 
+
+UnnamedFormalParameter ::= Modifiersopt Type UnnamedVariable
+/.$putCase consumeUnnamedFormalParameter(false); $break ./
+UnnamedFormalParameter ::= Modifiersopt Type PushZeroTypeAnnotations '...' UnnamedVariable
+/.$putCase consumeUnnamedFormalParameter(true); $break ./
+/:$compliance 21:/
+UnnamedFormalParameter ::= Modifiersopt Type @308... TypeAnnotations '...' UnnamedVariable
+/.$putCase consumeUnnamedFormalParameter(true); $break ./
+/:$readableName UnnamedFormalParameter:/
+/:$compliance 21:/
+/:$recovery_template Identifier Identifier:/
+
+UnnamableFormalParameterList ::= UnnamedFormalParameter
+UnnamableFormalParameterList ::= FormalParameter
+UnnamableFormalParameterList ::= UnnamableFormalParameterList ',' UnnamedFormalParameter
+/.$putCase consumeFormalParameterList(); $break ./
+/:$readableName UnnamableFormalParameterList:/
+UnnamableFormalParameterList ::= UnnamableFormalParameterList ',' FormalParameter
+/.$putCase consumeFormalParameterList(); $break ./
+/:$readableName UnnamableFormalParameterList:/
+
+
+UnnamableFormalParameterListopt ::= $empty
+/.$putcase consumeFormalParameterListopt(); $break ./
+UnnamableFormalParameterListopt -> UnnamableFormalParameterList
+/:$readableName UnnamableFormalParameterListopt:/
+
+
+
+
 FormalParameterList -> FormalParameter
 FormalParameterList ::= FormalParameterList ',' FormalParameter
 /.$putCase consumeFormalParameterList(); $break ./
@@ -941,6 +971,7 @@ FormalParameter ::= Modifiersopt Type @308... TypeAnnotations '...' VariableDecl
 /:$readableName FormalParameter:/
 /:$compliance 1.8:/
 /:$recovery_template Identifier Identifier:/
+
 
 CatchFormalParameter ::= Modifiersopt CatchType VariableDeclaratorId
 /.$putCase consumeCatchFormalParameter(false); $break ./
@@ -1909,8 +1940,9 @@ LambdaParameters -> BeginLambda NestedLambda LambdaParameterList
 ParenthesizedLambdaParameterList ::= LambdaParameterList
 /:$readableName ParenthesizedLambdaParameterList:/
 
-LambdaParameterList -> PushLPAREN FormalParameterListopt PushRPAREN
-LambdaParameterList -> PushLPAREN TypeElidedFormalParameterList PushRPAREN
+LambdaParameterList ::= PushLPAREN UnnamableFormalParameterListopt PushRPAREN
+LambdaParameterList ::= PushLPAREN TypeElidedFormalParameterList PushRPAREN
+
 /:$readableName LambdaParameterList:/
 /:$compliance 1.8:/
 
