@@ -1308,6 +1308,10 @@ TypePattern ::= Modifiersopt Type 'Identifier'
 /.$putCase consumeTypePattern(); $break ./
 /:$readableName TypePattern:/
 
+TypePattern ::= Modifiersopt Type '_'
+/.$putCase consumeTypePattern(); $break ./
+/:$readableName TypePattern:/
+
 -----------------------------------------------
 -- 16 feature : end of instanceof pattern matching
 -----------------------------------------------

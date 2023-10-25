@@ -53,7 +53,7 @@ public class TypePattern extends VariablePattern {
 		if (this.resolvedType == null) {
 			this.resolveType(scope);
 		}
-		if (this.local != null && this.local.binding != null) {
+		if (this.local != null && this.local.binding != null && !this.local.isUnused(scope)) {
 			LocalVariableBinding binding = this.local.binding;
 			if (variables != null) {
 				for (LocalVariableBinding variable : variables) {

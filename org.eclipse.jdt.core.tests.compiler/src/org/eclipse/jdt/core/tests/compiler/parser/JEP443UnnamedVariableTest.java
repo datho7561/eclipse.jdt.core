@@ -47,6 +47,7 @@ public class JEP443UnnamedVariableTest  extends AbstractCompilerTest {
 				optimizeStringLiterals);
 		ICompilationUnit sourceUnit = new CompilationUnit(source.toCharArray(), testName, null);
 		CompilationResult compilationResult = new CompilationResult(sourceUnit, 0, 0, 0);
+
 		return parser.parse(sourceUnit, compilationResult);
 	}
 
@@ -302,10 +303,10 @@ public class JEP443UnnamedVariableTest  extends AbstractCompilerTest {
 	}
 
 	@Test
-	public void testInstanceOfPatternMatchingWithUnnamedPatternsAndNestedRecords() {
+	public void testInstanceOfPatternMatchingWithUnnamedPatterns() {
 		CompilationUnitDeclaration res = parse(
 				"""
-				public class HelloWorld {
+				public class A {
 					public static void main(String[] args) {
 						var namedPoint = new NamedPoint("name", new Point(1, 2));
 						if (namedPoint instanceof MyRecord(_, MyPoint(_, _))) {
@@ -320,10 +321,10 @@ public class JEP443UnnamedVariableTest  extends AbstractCompilerTest {
 	}
 
 	@Test
-	public void testInstanceOfPatternMatchingWithMixedPatternsAndNestedRecords() {
+	public void testInstanceOfPatternMatchingWithMixedPatterns() {
 		CompilationUnitDeclaration res = parse(
 				"""
-				public class HelloWorld {
+				public class A {
 					public static void main(String[] args) {
 						var namedPoint = new NamedPoint("name", new Point(1, 2));
 						if (namedPoint instanceof MyRecord(_, MyPoint(_, int y))) {
@@ -338,13 +339,31 @@ public class JEP443UnnamedVariableTest  extends AbstractCompilerTest {
 	}
 
 	@Test
-	public void testSwitchPatternMatchingWithUnnamedPatternsAndNestedRecords() {
+	public void testInstanceOfPatternMatchingWithUnnamedVariables() {
 		CompilationUnitDeclaration res = parse(
 				"""
-				public class HelloWorld {
+				public class A {
 					public static void main(String[] args) {
 						var namedPoint = new NamedPoint("name", new Point(1, 2));
-						switch (salad) {
+						if (namedPoint instanceof MyRecord(String _, MyPoint(_, int _))) {
+							System.out.println(y);
+						}
+					}
+				}
+				record NamedPoint(String name, Point point) {}
+				record Point(int x, int y) {}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+	@Test
+	public void testSwitchPatternMatchingWithUnnamedPatterns() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				public class A {
+					public static void main(String[] args) {
+						var namedPoint = new NamedPoint("name", new Point(1, 2));
+						switch (namedPoint) {
 							case NamedPoint(_, Point(_, _)) -> System.out.println("I am utilizing pattern matching");
 							default -> System.out.println("oh no");
 						}
@@ -357,13 +376,13 @@ public class JEP443UnnamedVariableTest  extends AbstractCompilerTest {
 	}
 
 	@Test
-	public void testSwitchPatternMatchingWithMixedPatternsAndNestedRecords() {
+	public void testSwitchPatternMatchingWithMixedPatterns() {
 		CompilationUnitDeclaration res = parse(
 				"""
-				public class HelloWorld {
+				public class A {
 					public static void main(String[] args) {
 						var namedPoint = new NamedPoint("name", new Point(1, 2));
-						switch (salad) {
+						switch (namedPoint) {
 							case NamedPoint(_, Point(int x, _)) -> System.out.println(x);
 							default -> System.out.println("oh no");
 						}
@@ -375,5 +394,42 @@ public class JEP443UnnamedVariableTest  extends AbstractCompilerTest {
 		assertFalse(res.compilationResult.hasErrors());
 	}
 
+	@Test
+	public void testSwitchPatternMatchingWithUnnamedVariables() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				public class A {
+					public static void main(String[] args) {
+						var namedPoint = new NamedPoint("name", new Point(1, 2));
+						switch (namedPoint) {
+							case NamedPoint(String _, Point(int _, _)) -> System.out.println(x);
+							default -> System.out.println("oh no");
+						}
+					}
+				}
+				record NamedPoint(String name, Point point) {}
+				record Point(int x, int y) {}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+	@Test
+	public void testSwitchPatternMatchingWithUnnamedVariablesVar() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				public class A {
+					public static void main(String[] args) {
+						var namedPoint = new NamedPoint("name", new Point(1, 2));
+						switch (namedPoint) {
+							case NamedPoint(String _, Point(var _, _)) -> System.out.println(x);
+							default -> System.out.println("oh no");
+						}
+					}
+				}
+				record NamedPoint(String name, Point point) {}
+				record Point(int x, int y) {}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
 
 }

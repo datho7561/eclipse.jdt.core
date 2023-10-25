@@ -124,11 +124,15 @@ public class Argument extends LocalDeclaration {
 			final boolean localExists = existingVariable instanceof LocalVariableBinding;
 			if (localExists && this.hiddenVariableDepth == 0) {
 				if ((this.bits & ASTNode.ShadowsOuterLocal) != 0 && scope.isLambdaSubscope()) {
-					scope.problemReporter().lambdaRedeclaresArgument(this);
+					if (!this.isUnused(scope)) {
+						scope.problemReporter().lambdaRedeclaresArgument(this);
+					}
 				} else if (scope.referenceContext instanceof CompactConstructorDeclaration) {
 					// skip error reporting - hidden params - already reported in record components
 				} else {
-					scope.problemReporter().redefineArgument(this);
+					if (!this.isUnused(scope)) {
+						scope.problemReporter().redefineArgument(this);
+					}
 				}
 			} else {
 				boolean isSpecialArgument = false;
