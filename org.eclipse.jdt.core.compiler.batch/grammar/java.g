@@ -1938,6 +1938,11 @@ NestedLambda ::= $empty
 /.$putCase consumeNestedLambda(); $break ./
 /:$readableName NestedLambda:/
 
+LambdaParameters ::= UnnamedVariable NestedLambda
+/.$putCase consumeTypeElidedLambdaParameter(false); $break ./
+/:$readableName TypeElidedUnnamedFormalParameter:/
+/:$compliance 21:/
+
 LambdaParameters ::= Identifier NestedLambda
 /.$putCase consumeTypeElidedLambdaParameter(false); $break ./
 /:$readableName TypeElidedFormalParameter:/
@@ -1971,6 +1976,12 @@ TypeElidedFormalParameter ::= Modifiersopt Identifier
 /.$putCase consumeTypeElidedLambdaParameter(true); $break ./
 /:$readableName TypeElidedFormalParameter:/
 /:$compliance 1.8:/
+
+TypeElidedFormalParameter ::= Modifiersopt UnnamedVariable
+/.$putCase consumeTypeElidedLambdaParameter(true); $break ./
+/:$readableName TypeElidedFormalParameter:/
+/:$compliance 21:/
+
 
 -- A lambda body of the form x is really '{' return x; '}'
 LambdaBody -> ElidedLeftBraceAndReturn Expression ElidedSemicolonAndRightBrace

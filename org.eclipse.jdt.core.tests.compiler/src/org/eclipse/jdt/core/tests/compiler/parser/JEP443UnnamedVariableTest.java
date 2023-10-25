@@ -159,6 +159,148 @@ public class JEP443UnnamedVariableTest  extends AbstractCompilerTest {
 		assertTrue(res.compilationResult.hasErrors());
 	}
 
+
+	@Test
+	public void testLambdaFunctionParamsWithParens1() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				import java.util.function.Function;
+
+				public class A {
+					public static void doSomething() {
+						Function<Integer, String> myFunc =  (Integer _) -> "Hello";
+					}
+				}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+	@Test
+	public void testLambdaFunctionParamsWithParens2() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				import java.util.function.Function;
+
+				public class A {
+					public static void doSomething() {
+						Function<Integer, String> myFunc =  (_) -> "Hello";
+					}
+				}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+
+	@Test
+	public void testLambdaFunctionParamsNoParens1() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				import java.util.function.Function;
+
+				public class A {
+					public static void doSomething() {
+						Function<Integer, String> myFunc =  Integer _ -> "Hello";
+					}
+				}
+				""", "A.java");
+		assertTrue(res.compilationResult.hasErrors());
+	}
+
+	@Test
+	public void testLambdaFunctionParamsNoParens2() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				import java.util.function.Function;
+
+				public class A {
+					public static void doSomething() {
+						Function<Integer, String> myFunc =  _ -> "Hello";
+					}
+				}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+
+	@Test
+	public void testLambdaBiFunctionParamsNoParens1() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				import java.util.function.BiFunction;
+
+				public class A {
+					public static void doSomething() {
+						BiFunction<Integer, Integer, String> myFunc =  (a,b) -> "Hello";
+					}
+				}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+
+	@Test
+	public void testLambdaBiFunctionParamsNoParens2() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				import java.util.function.BiFunction;
+
+				public class A {
+					public static void doSomething() {
+						BiFunction<Integer, Integer, String> myFunc =  (_,b) -> "Hello";
+					}
+				}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+
+	@Test
+	public void testLambdaBiFunctionParamsNoParens3() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				import java.util.function.BiFunction;
+
+				public class A {
+					public static void doSomething() {
+						BiFunction<Integer, Integer, String> myFunc =  (a,_) -> "Hello";
+					}
+				}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+
+
+	@Test
+	public void testLambdaBiFunctionParamsNoParens4() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				import java.util.function.BiFunction;
+
+				public class A {
+					public static void doSomething() {
+						BiFunction<Integer, Integer, String> myFunc =  (_,_) -> "Hello";
+					}
+				}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+	@Test
+	public void testLambdaBiFunctionParamsNoParensSyntaxError() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				import java.util.function.BiFunction;
+
+				public class A {
+					public static void doSomething() {
+						BiFunction<Integer, Integer, String> myFunc =  (_#,_) -> "Hello";
+					}
+				}
+				""", "A.java");
+		assertTrue(res.compilationResult.hasErrors());
+	}
+
 	@Test
 	public void testInstanceOfPatternMatchingWithUnnamedPatternsAndNestedRecords() {
 		CompilationUnitDeclaration res = parse(
@@ -232,4 +374,6 @@ public class JEP443UnnamedVariableTest  extends AbstractCompilerTest {
 				""", "A.java");
 		assertFalse(res.compilationResult.hasErrors());
 	}
+
+
 }

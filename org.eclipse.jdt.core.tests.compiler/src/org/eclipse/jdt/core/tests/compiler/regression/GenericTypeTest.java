@@ -31033,7 +31033,7 @@ public void test0931() {
 		"1. ERROR in X.java (at line 4)\n" +
 		"	X<T>.I= 10;\n" +
 		"	     ^\n" +
-		"Syntax error on token \"I\", VariableDeclaratorId expected after this token\n" +
+		"Syntax error on token \"I\", UnnamedVariable expected after this token\n" +
 		"----------\n");
 }
 //https://bugs.eclipse.org/bugs/show_bug.cgi?id=119238 - variation
