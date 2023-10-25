@@ -257,6 +257,7 @@ public static TestSuite getTestSuite(boolean addComplianceDiagnoseTest) {
 	if ((possibleComplianceLevels & AbstractCompilerTest.F_21) != 0) {
 		ArrayList tests_21 = (ArrayList)testClasses.clone();
 		tests_21.addAll(TEST_CLASSES_1_5);
+		tests_21.add(JEP443UnnamedVariableTest.class);
 		addJava16Tests(tests_21);
 		// Reset forgotten subsets tests
 		TestCase.TESTS_PREFIX = null;

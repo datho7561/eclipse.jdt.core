@@ -1,0 +1,161 @@
+/*******************************************************************************
+ * Copyright (c) 2023 Red Hat, Inc. and others.
+ *
+ * This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License 2.0
+ * which accompanies this distribution, and is available at
+ * https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ *******************************************************************************/
+package org.eclipse.jdt.core.tests.compiler.parser;
+
+import java.util.Locale;
+
+import org.eclipse.jdt.core.tests.util.AbstractCompilerTest;
+import org.eclipse.jdt.internal.compiler.CompilationResult;
+import org.eclipse.jdt.internal.compiler.DefaultErrorHandlingPolicies;
+import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration;
+import org.eclipse.jdt.internal.compiler.batch.CompilationUnit;
+import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
+import org.eclipse.jdt.internal.compiler.env.ICompilationUnit;
+import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
+import org.eclipse.jdt.internal.compiler.parser.Parser;
+import org.eclipse.jdt.internal.compiler.problem.DefaultProblemFactory;
+import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
+import org.junit.Test;
+
+public class JEP443UnnamedVariableTest  extends AbstractCompilerTest {
+	public static boolean optimizeStringLiterals = false;
+	public static long sourceLevel = ClassFileConstants.JDK21; //$NON-NLS-1$
+
+	public JEP443UnnamedVariableTest(String testName){
+		super(testName);
+	}
+
+	private CompilationUnitDeclaration parse(String source, String testName) {
+		this.complianceLevel = ClassFileConstants.JDK21;
+		/* using regular parser in DIET mode */
+		CompilerOptions options = new CompilerOptions(getCompilerOptions());
+		options.enablePreviewFeatures = true;
+		Parser parser =
+			new Parser(
+				new ProblemReporter(
+					DefaultErrorHandlingPolicies.proceedWithAllProblems(),
+					options,
+					new DefaultProblemFactory(Locale.getDefault())),
+				optimizeStringLiterals);
+		ICompilationUnit sourceUnit = new CompilationUnit(source.toCharArray(), testName, null);
+		CompilationResult compilationResult = new CompilationResult(sourceUnit, 0, 0, 0);
+		return parser.parse(sourceUnit, compilationResult);
+	}
+
+	@Test
+	public void testCatchStatementWithUnnamedVars() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				public class A {
+					public void doSomething() {
+						try {
+							throw new Exception();
+						} catch( Exception _) {
+							System.out.println("Error");
+						}
+					}
+				}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+	@Test
+	public void testCatchStatementWitSyntaxError() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				public class A {
+					public void doSomething() {
+						try {
+							throw new Exception();
+						} catch( Exception _@) {
+							System.out.println("Error");
+						}
+					}
+				}
+				""", "A.java");
+		assertTrue(res.compilationResult.hasErrors());
+	}
+
+
+	@Test
+	public void testTryWithResourcesWithUnnamedVars() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				public class A {
+					public void doSomething() {
+						InputStream is = null;
+						File f = null;
+					    try (final InputStream _ = new FileInputStream(f)){
+					    	throw new Exception();
+					    } catch( Exception e) {
+
+					    }
+	    			}
+				}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+	@Test
+	public void testTryWithResourcesWithSyntaxError() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				public class A {
+					public void doSomething() {
+						InputStream is = null;
+						File f = null;
+					    try (final InputStream _@ = new FileInputStream(f)){
+					    	throw new Exception();
+					    } catch( Exception e) {
+
+					    }
+	    			}
+				}
+				""", "A.java");
+		assertTrue(res.compilationResult.hasErrors());
+	}
+
+
+
+	@Test
+	public void testLambdaUnnamedParameter() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				public class A {
+					interface FuncInterface {
+						void abstractFun(int x, String y);
+					}
+					public static void main(String args[]) {
+						FuncInterface fobj = (int x, String _) -> System.out.println(2 * x);
+						fobj.abstractFun(5, "blah");
+					}
+				}
+				""", "A.java");
+		assertFalse(res.compilationResult.hasErrors());
+	}
+
+	@Test
+	public void testLambdaUnnamedParameterWithSyntaxError() {
+		CompilationUnitDeclaration res = parse(
+				"""
+				public class A {
+					interface FuncInterface {
+						void abstractFun(int x, String y);
+					}
+					public static void main(String args[]) {
+						FuncInterface fobj = (int x, String a$@!) -> System.out.println(2 * x);
+						fobj.abstractFun(5, "blah");
+					}
+				}
+				""", "A.java");
+		assertTrue(res.compilationResult.hasErrors());
+	}
+}
