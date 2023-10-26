@@ -7369,22 +7369,28 @@ public void testIntersectionCast() {
 }
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=421711, [1.8][compiler] '_' as identifier for a lambda parameter should be rejected.
 public void testUnderScoreParameter() {
+		var testContent = new String[] {
+				"X.java",
+				"interface F {\n" +
+				"	void foo(int x);\n" +
+				"}\n" +
+				"interface I {\n" +
+				"	default void foo() {\n" +
+				"		F f = (int _) -> {\n" +
+				"		};\n" +
+				"		F f2 = _ -> {};\n" +
+				"	}\n" +
+				"}\n"
+		};
+		if (this.complianceLevel >= ClassFileConstants.JDK21 && this.enablePreview) {
+			this.runNegativeTest(testContent, "");
+			return;
+		}
 		String level = this.complianceLevel >= ClassFileConstants.JDK9 ? "ERROR" : "WARNING";
 		String errorMessage = this.complianceLevel >= ClassFileConstants.JDK9 ? "\'_\' is a keyword from source level 9 onwards, cannot be used as identifier\n" : "\'_\' should not be used as an identifier, since it is a reserved keyword from source level 1.8 on\n";
 		this.runNegativeTest(
-			new String[] {
-					"X.java",
-					"interface F {\n" +
-					"	void foo(int x);\n" +
-					"}\n" +
-					"interface I {\n" +
-					"	default void foo() {\n" +
-					"		F f = (int _) -> {\n" +
-					"		};\n" +
-					"		F f2 = _ -> {};\n" +
-					"	}\n" +
-					"}\n"
-			},
+			testContent
+			,
 			"----------\n" +
 			"1. ERROR in X.java (at line 6)\n" +
 			"	F f = (int _) -> {\n" +

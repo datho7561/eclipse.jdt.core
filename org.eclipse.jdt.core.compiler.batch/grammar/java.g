@@ -1311,6 +1311,7 @@ TypePattern ::= Modifiersopt Type 'Identifier'
 TypePattern ::= Modifiersopt Type '_'
 /.$putCase consumeTypePattern(); $break ./
 /:$readableName TypePattern:/
+/:$compliance 21:/
 
 -----------------------------------------------
 -- 16 feature : end of instanceof pattern matching
@@ -1349,6 +1350,7 @@ ComponentPatternList ::= ComponentPatternList ',' ComponentPattern
 -----------------------------------------------
 ComponentPattern -> Pattern
 ComponentPattern -> UnnamedPattern
+/:$compliance 21:/
 
 UnnamedPattern ::= '_'
 /.$putCase consumeUnnamedPattern();  $break ./

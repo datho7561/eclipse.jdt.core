@@ -213,4 +213,7 @@ public interface ITerminalSymbols {
 
 	/** @since 3.32 */
 	int TokenNameRestrictedIdentifierWhen = 415;
+
+	/** @since 3.36 */
+	int TokenNameUnderscore = 416;
 }
