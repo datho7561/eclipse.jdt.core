@@ -2566,7 +2566,7 @@ void setSourceStart(int sourceStart);
 	int SyntheticAccessorNotEnclosingMethod = MethodRelated + 1990;
 
 	/**
-	 * @since 3.3.6
+	 * @since 3.36
 	 * @noreference preview feature
 	 */
 	int FieldNameCannotBeUnderscore = PreviewRelated + 2000;
