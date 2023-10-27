@@ -808,11 +808,19 @@ VariableDeclarators ::= VariableDeclarators ',' VariableDeclarator
 /:$recovery_template Identifier:/
 
 VariableDeclarator ::= VariableDeclaratorId EnterVariable ExitVariableWithoutInitialization
+/:$readableName VariableDeclarator:/
+/:$recovery_template Identifier:/
 VariableDeclarator ::= VariableDeclaratorId EnterVariable '=' ForceNoDiet VariableInitializer RestoreDiet ExitVariableWithInitialization
+/:$readableName VariableDeclarator:/
+/:$recovery_template Identifier:/
 VariableDeclarator ::= UnnamedVariable EnterUnnamedVariable ExitVariableWithoutInitialization
+/:$readableName VariableDeclarator:/
+/:$recovery_template Identifier:/
+/:$compliance 21:/
 VariableDeclarator ::= UnnamedVariable EnterUnnamedVariable '=' ForceNoDiet VariableInitializer RestoreDiet ExitVariableWithInitialization
 /:$readableName VariableDeclarator:/
 /:$recovery_template Identifier:/
+/:$compliance 21:/
 
 EnterVariable ::= $empty
 /.$putCase consumeEnterVariable(); $break ./
@@ -843,6 +851,7 @@ VariableDeclaratorId ::= 'Identifier' Dimsopt
 
 UnnamedVariable ::= 'Underscore'
 /:$readableName UnnamedVariable:/
+/:$compliance 21:/
 
 VariableInitializer -> Expression
 VariableInitializer -> ArrayInitializer
@@ -1349,6 +1358,7 @@ ComponentPatternList ::= ComponentPatternList ',' ComponentPattern
 -- 21 preview feature : unnamed record patterns
 -----------------------------------------------
 ComponentPattern -> Pattern
+/:$compliance 20:/
 ComponentPattern -> UnnamedPattern
 /:$compliance 21:/
 
@@ -2584,10 +2594,12 @@ EnhancedForStatementHeaderInit ::= 'for' '(' Modifiers Type PushRealModifiers Id
 EnhancedForStatementHeaderInit ::= 'for' '(' Type PushModifiers UnnamedVariable
 /.$putCase consumeEnhancedForStatementHeaderInitUnnamed(false); $break ./
 /:$readableName EnhancedForStatementHeaderInit:/
+/:$compliance 21:/
 
 EnhancedForStatementHeaderInit ::= 'for' '(' Modifiers Type PushRealModifiers UnnamedVariable
 /.$putCase consumeEnhancedForStatementHeaderInitUnnamed(true); $break ./
 /:$readableName EnhancedForStatementHeaderInit:/
+/:$compliance 21:/
 
 EnhancedForStatementHeader ::= EnhancedForStatementHeaderInit ':' Expression ')'
 /.$putCase consumeEnhancedForStatementHeader(); $break ./
