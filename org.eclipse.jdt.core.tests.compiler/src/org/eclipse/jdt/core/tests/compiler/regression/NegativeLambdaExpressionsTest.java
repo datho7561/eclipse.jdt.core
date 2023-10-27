@@ -7382,8 +7382,28 @@ public void testUnderScoreParameter() {
 				"	}\n" +
 				"}\n"
 		};
-		if (this.complianceLevel >= ClassFileConstants.JDK21 && this.enablePreview) {
-			this.runNegativeTest(testContent, "");
+		if (this.complianceLevel >= ClassFileConstants.JDK21) {
+			if (this.enablePreview) {
+				this.runNegativeTest(testContent, "");
+			} else {
+				this.runNegativeTest(testContent, //
+						"----------\n"
+						+ "1. ERROR in X.java (at line 6)\n"
+						+ "	F f = (int _) -> {\n"
+						+ "	           ^\n"
+						+ "Unnamed Patterns and Variables is a preview feature and disabled by default. Use --enable-preview to enable\n"
+						+ "----------\n"
+						+ "2. ERROR in X.java (at line 8)\n"
+						+ "	F f2 = _ -> {};\n"
+						+ "	       ^\n"
+						+ "Unnamed Patterns and Variables is a preview feature and disabled by default. Use --enable-preview to enable\n"
+						+ "----------\n"
+						+ "3. ERROR in X.java (at line 8)\n"
+						+ "	F f2 = _ -> {};\n"
+						+ "	       ^\n"
+						+ "Unnamed Patterns and Variables is a preview feature and disabled by default. Use --enable-preview to enable\n"
+						+ "----------\n");
+			}
 			return;
 		}
 		String level = this.complianceLevel >= ClassFileConstants.JDK9 ? "ERROR" : "WARNING";

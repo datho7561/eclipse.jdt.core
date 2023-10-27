@@ -4248,6 +4248,9 @@ protected void consumeToken(int token) {
 			case TokenNameCOLON_COLON:
 				this.inReferenceExpression = true;
 				break;
+			case TokenNameUnderscore:
+				super.consumeToken(this.currentToken);
+				break;
 			case TokenNameIdentifier:
 				if (this.inReferenceExpression)
 					break;

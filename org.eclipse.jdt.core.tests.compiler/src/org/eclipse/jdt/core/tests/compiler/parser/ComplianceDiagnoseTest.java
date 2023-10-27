@@ -107,6 +107,31 @@ public void runComplianceParserTest(
 			this.runNegativeTest(testFiles, expected18ProblemLog);
 		}
 	}
+public void runComplianceParserTest(
+		String[] testFiles,
+		String expected13ProblemLog,
+		String expected14ProblemLog,
+		String expected15ProblemLog,
+		String expected16ProblemLog,
+		String expected17ProblemLog,
+		String expected18ProblemLog,
+		String expected21ProblemLog){
+		if (this.complianceLevel == ClassFileConstants.JDK1_3) {
+			this.runNegativeTest(testFiles, expected13ProblemLog);
+		} else if(this.complianceLevel == ClassFileConstants.JDK1_4) {
+			this.runNegativeTest(testFiles, expected14ProblemLog);
+		} else if(this.complianceLevel == ClassFileConstants.JDK1_5) {
+			this.runNegativeTest(testFiles, expected15ProblemLog);
+		} else if(this.complianceLevel == ClassFileConstants.JDK1_6) {
+			this.runNegativeTest(testFiles, expected16ProblemLog);
+		} else if (this.complianceLevel == ClassFileConstants.JDK1_7) {
+			this.runNegativeTest(testFiles, expected17ProblemLog);
+		} else if(this.complianceLevel < ClassFileConstants.JDK21) {
+			this.runNegativeTest(testFiles, expected18ProblemLog);
+		} else {
+			this.runNegativeTest(testFiles, expected21ProblemLog);
+		}
+	}
 public void test0001() {
 	String[] testFiles = new String[] {
 		"X.java",
@@ -3288,6 +3313,43 @@ public void testBug399781() {
 			"	                   ^\n" +
 			"The parameter _ is hiding a field from type X\n" +
 			"----------\n";
+	String expected21ProblemLog =
+			"----------\n"
+			+ "1. ERROR in X.java (at line 2)\n"
+			+ "	int _;\n"
+			+ "	    ^\n"
+			+ "Unnamed Patterns and Variables is a preview feature and disabled by default. Use --enable-preview to enable\n"
+			+ "----------\n"
+			+ "2. ERROR in X.java (at line 4)\n"
+			+ "	int _   = 3;\n"
+			+ "	    ^\n"
+			+ "Unnamed Patterns and Variables is a preview feature and disabled by default. Use --enable-preview to enable\n"
+			+ "----------\n"
+			+ "3. WARNING in X.java (at line 4)\n"
+			+ "	int _   = 3;\n"
+			+ "	    ^\n"
+			+ "The local variable _ is hiding a field from type X\n"
+			+ "----------\n"
+			+ "4. ERROR in X.java (at line 8)\n"
+			+ "	void goo(int _) {}\n"
+			+ "	             ^\n"
+			+ "Unnamed Patterns and Variables is a preview feature and disabled by default. Use --enable-preview to enable\n"
+			+ "----------\n"
+			+ "5. WARNING in X.java (at line 8)\n"
+			+ "	void goo(int _) {}\n"
+			+ "	             ^\n"
+			+ "The parameter _ is hiding a field from type X\n"
+			+ "----------\n"
+			+ "6. ERROR in X.java (at line 11)\n"
+			+ "	} catch (Exception _) {\n"
+			+ "	                   ^\n"
+			+ "Unnamed Patterns and Variables is a preview feature and disabled by default. Use --enable-preview to enable\n"
+			+ "----------\n"
+			+ "7. WARNING in X.java (at line 11)\n"
+			+ "	} catch (Exception _) {\n"
+			+ "	                   ^\n"
+			+ "The parameter _ is hiding a field from type X\n"
+			+ "----------\n";
 
 	runComplianceParserTest(
 			testFiles,
@@ -3296,7 +3358,8 @@ public void testBug399781() {
 			expected13ProblemLog,
 			expected13ProblemLog,
 			expected13ProblemLog,
-			expectedProblemLog
+			expectedProblemLog,
+			expected21ProblemLog
 	);
 }
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=406846:  [1.8] compiler NPE for method reference/lambda code compiled with < 1.8 compliance
