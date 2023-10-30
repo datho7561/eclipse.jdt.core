@@ -807,12 +807,6 @@ VariableDeclarators ::= VariableDeclarators ',' VariableDeclarator
 /:$readableName VariableDeclarators:/
 /:$recovery_template Identifier:/
 
-VariableDeclarator ::= VariableDeclaratorId EnterVariable ExitVariableWithoutInitialization
-/:$readableName VariableDeclarator:/
-/:$recovery_template Identifier:/
-VariableDeclarator ::= VariableDeclaratorId EnterVariable '=' ForceNoDiet VariableInitializer RestoreDiet ExitVariableWithInitialization
-/:$readableName VariableDeclarator:/
-/:$recovery_template Identifier:/
 VariableDeclarator ::= UnnamedVariable EnterUnnamedVariable ExitVariableWithoutInitialization
 /:$readableName VariableDeclarator:/
 /:$recovery_template Identifier:/
@@ -821,6 +815,13 @@ VariableDeclarator ::= UnnamedVariable EnterUnnamedVariable '=' ForceNoDiet Vari
 /:$readableName VariableDeclarator:/
 /:$recovery_template Identifier:/
 /:$compliance 21:/
+
+VariableDeclarator ::= VariableDeclaratorId EnterVariable ExitVariableWithoutInitialization
+/:$readableName VariableDeclarator:/
+/:$recovery_template Identifier:/
+VariableDeclarator ::= VariableDeclaratorId EnterVariable '=' ForceNoDiet VariableInitializer RestoreDiet ExitVariableWithInitialization
+/:$readableName VariableDeclarator:/
+/:$recovery_template Identifier:/
 
 EnterVariable ::= $empty
 /.$putCase consumeEnterVariable(); $break ./
