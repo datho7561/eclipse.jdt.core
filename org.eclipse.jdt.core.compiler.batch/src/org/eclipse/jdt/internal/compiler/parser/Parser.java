@@ -7508,7 +7508,7 @@ protected void consumeRule(int act) {
 		    consumeInstanceOfExpression();
 			break;
 
-    case 371 : if (DEBUG) { System.out.println("InstanceofRHS -> InstanceofPattern"); }  //$NON-NLS-1$
+    case 371 : if (DEBUG) { System.out.println("InstanceofRHS -> InstanceofClassic"); }  //$NON-NLS-1$
 		    consumeInstanceOfRHS();
 			break;
 
