@@ -31019,22 +31019,43 @@ public void test0930() {
 }
 //https://bugs.eclipse.org/bugs/show_bug.cgi?id=119238 - variation
 public void test0931() {
-	this.runNegativeTest(
-		new String[] {
-		"X.java",
-		"public class X<T> {\n" +
-		"        public static int I;\n" +
-		"        public void foo() {\n" +
-		"                X<T>.I= 10;\n" +
-		"        }\n" +
-		"}\n",
-		},
-		"----------\n" +
-		"1. ERROR in X.java (at line 4)\n" +
-		"	X<T>.I= 10;\n" +
-		"	     ^\n" +
-		"Syntax error on token \"I\", VariableDeclaratorId expected after this token\n" +
-		"----------\n");
+
+	if (this.complianceLevel >= ClassFileConstants.JDK21) {
+		this.runNegativeTest(
+				new String[] {
+						"X.java",
+						"public class X<T> {\n" +
+								"        public static int I;\n" +
+								"        public void foo() {\n" +
+								"                X<T>.I= 10;\n" +
+								"        }\n" +
+								"}\n",
+				},
+				"----------\n" +
+						"1. ERROR in X.java (at line 4)\n" +
+						"	X<T>.I= 10;\n" +
+						"	     ^\n" +
+						"Syntax error on token \"I\", UnnamedVariable expected after this token\n" +
+				"----------\n");
+	} else {
+		this.runNegativeTest(
+				new String[] {
+						"X.java",
+						"public class X<T> {\n" +
+								"        public static int I;\n" +
+								"        public void foo() {\n" +
+								"                X<T>.I= 10;\n" +
+								"        }\n" +
+								"}\n",
+				},
+				"----------\n" +
+						"1. ERROR in X.java (at line 4)\n" +
+						"	X<T>.I= 10;\n" +
+						"	     ^\n" +
+						"Syntax error on token \"I\", VariableDeclaratorId expected after this token\n" +
+				"----------\n");
+	}
+
 }
 //https://bugs.eclipse.org/bugs/show_bug.cgi?id=119238 - variation
 public void _test0932() {

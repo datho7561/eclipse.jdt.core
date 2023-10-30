@@ -1295,8 +1295,8 @@ InstanceofExpression ::= InstanceofExpression InstanceofRHS
 /.$putCase consumeInstanceOfExpression(); $break ./
 /:$readableName Expression:/
 
-InstanceofRHS -> InstanceofPattern
 InstanceofRHS -> InstanceofClassic
+InstanceofRHS -> InstanceofPattern
 /.$putCase consumeInstanceOfRHS(); $break ./
 /:$readableName Expression:/
 
