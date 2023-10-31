@@ -1359,13 +1359,10 @@ ComponentPatternList ::= ComponentPatternList ',' ComponentPattern
 -- 21 preview feature : unnamed record patterns
 -----------------------------------------------
 ComponentPattern -> Pattern
-/:$compliance 20:/
 ComponentPattern -> UnnamedPattern
-/:$compliance 21:/
 
 UnnamedPattern ::= '_'
 /.$putCase consumeUnnamedPattern();  $break ./
-/:$compliance 21:/
 -----------------------------------------------
 -- 21 preview feature : end of unnamed record patterns
 -----------------------------------------------
