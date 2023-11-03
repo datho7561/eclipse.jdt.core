@@ -986,6 +986,7 @@ protected boolean parsingJava14Plus;
 protected boolean parsingJava15Plus;
 protected boolean parsingJava17Plus;
 protected boolean parsingJava18Plus;
+protected boolean parsingJava21Plus;
 protected boolean previewEnabled;
 protected boolean parsingJava11Plus;
 protected int unstackedAct = ERROR_ACTION;
@@ -1017,6 +1018,7 @@ public Parser(ProblemReporter problemReporter, boolean optimizeStringLiterals) {
 	this.parsingJava15Plus = this.options.sourceLevel >= ClassFileConstants.JDK15;
 	this.parsingJava17Plus = this.options.sourceLevel >= ClassFileConstants.JDK17;
 	this.parsingJava18Plus = this.options.sourceLevel >= ClassFileConstants.JDK18;
+	this.parsingJava21Plus = this.options.sourceLevel >= ClassFileConstants.JDK21;
 	this.previewEnabled = this.options.sourceLevel == ClassFileConstants.getLatestJDKLevel() && this.options.enablePreviewFeatures;
 	this.astLengthStack = new int[50];
 	this.expressionLengthStack = new int[30];
@@ -7485,11 +7487,8 @@ protected void consumeRule(int act) {
 		    consumePatternListopt();
 			break;
 
-	    case 369 : if (DEBUG) { System.out.println("PushLeftBrace ::="); }  //$NON-NLS-1$
-			    consumePushLeftBrace();
-				break;
     case 368 : if (DEBUG) { System.out.println("ComponentPatternList ::= ComponentPatternList COMMA..."); }  //$NON-NLS-1$
-		    consumePatternList();
+		    consumePatternList(); 
 			break;
 
     case 370 : if (DEBUG) { System.out.println("TypePattern ::= Modifiersopt Type UNDERSCORE"); }  //$NON-NLS-1$
@@ -9118,8 +9117,13 @@ protected void consumeLambdaHeader() {
 		if (argument.isReceiver()) {
 			problemReporter().illegalThis(argument);
 		}
-		if (argument.name.length == 1 && argument.name[0] == '_')
-			problemReporter().illegalUseOfUnderscoreAsAnIdentifier(argument.sourceStart, argument.sourceEnd, true); // true == lambdaParameter
+		if (this.parsingJava8Plus && !(this.parsingJava21Plus && this.previewEnabled) && argument.name.length == 1 && argument.name[0] == '_') {
+			if (this.parsingJava21Plus) {
+				problemReporter().validateJavaFeatureSupport(JavaFeature.UNNAMMED_PATTERNS_AND_VARS, argument.sourceStart, argument.sourceEnd);
+			} else {
+				problemReporter().illegalUseOfUnderscoreAsAnIdentifier(argument.sourceStart, argument.sourceEnd, true); // true == lambdaParameter
+			}
+		}
 	}
 	LambdaExpression lexp = (LambdaExpression) this.astStack[this.astPtr];
 	lexp.setArguments(arguments);
@@ -13947,7 +13951,7 @@ protected void pushIdentifier(char [] identifier, long position) {
 			stackLength);
 	}
 	this.identifierLengthStack[this.identifierLengthPtr] = 1;
-	if (this.parsingJava8Plus && identifier.length == 1 && identifier[0] == '_' && !this.processingLambdaParameterList) {
+	if (this.parsingJava8Plus && !(this.parsingJava21Plus && this.previewEnabled) && identifier.length == 1 && identifier[0] == '_' && !this.processingLambdaParameterList) {
 		problemReporter().illegalUseOfUnderscoreAsAnIdentifier((int) (position >>> 32), (int) position, this.parsingJava9Plus);
 	}
 }
