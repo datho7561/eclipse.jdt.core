@@ -27,6 +27,7 @@ import javax.tools.DiagnosticListener;
 import javax.tools.FileObject;
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
+import javax.tools.JavaFileObject.Kind;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -43,6 +44,7 @@ import org.eclipse.jdt.internal.compiler.batch.FileSystem.Classpath;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.javac.JavacUtils;
+import org.eclipse.jdt.internal.javac.VirtualFileObject;
 import org.eclipse.jdt.internal.javac.dom.FindNextJavadocableSibling;
 
 import com.sun.tools.javac.file.JavacFileManager;
@@ -145,15 +147,16 @@ class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			boolean initialNeedsToResolveBinding, IJavaProject project, List<Classpath> classpaths,
 			NodeSearcher nodeSearcher, int apiLevel, Map<String, String> compilerOptions,
 			WorkingCopyOwner workingCopyOwner, WorkingCopyOwner typeRootWorkingCopyOwner, int flags, IProgressMonitor monitor) {
+		// For comparison
+		//CompilationUnit res2  = CompilationUnitResolver.FACADE.toCompilationUnit(sourceUnit, initialNeedsToResolveBinding, project, classpaths, nodeSearcher, apiLevel, compilerOptions, typeRootWorkingCopyOwner, typeRootWorkingCopyOwner, flags, monitor);
+
 		// TODO currently only parse
 		CompilationUnit res = parse(new org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] { sourceUnit},
 				apiLevel, compilerOptions, flags, project, monitor).get(sourceUnit);
 		if (initialNeedsToResolveBinding) {
 			resolveBindings(res);
 		}
-		// For comparison
-//		CompilationUnit res2  = CompilationUnitResolver.FACADE.toCompilationUnit(sourceUnit, initialNeedsToResolveBinding, project, classpaths, nodeSearcher, apiLevel, compilerOptions, typeRootWorkingCopyOwner, typeRootWorkingCopyOwner, flags, monitor);
-//		//res.typeAndFlags=res2.typeAndFlags;
+		//new CompilationUnitComparator(apiLevel).compare(res, res2);
 //		String res1a = res.toString();
 //		String res2a = res2.toString();
 //
@@ -181,13 +184,17 @@ class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		JavacUtils.configureJavacContext(context, compilerOptions, javaProject);
 		var fileManager = (JavacFileManager)context.get(JavaFileManager.class);
 		for (var sourceUnit : sourceUnits) {
-			Path sourceUnitPath;
-			if (sourceUnit.getFileName() == null || sourceUnit.getFileName().length == 0) {
-				sourceUnitPath = Path.of(new File("whatever.java").toURI());
-			} else {
-				sourceUnitPath = Path.of(new File(new String(sourceUnit.getFileName())).toURI());
+			JavaFileObject fileObject = null;
+			if( sourceUnit.getFileName() != null || sourceUnit.getFileName().length != 0 ) {
+				Path p1 = toOSPath(sourceUnit);
+				if( p1 != null ) {
+					fileObject = fileManager.getJavaFileObject(p1);
+				}
 			}
-			var fileObject = fileManager.getJavaFileObject(sourceUnitPath);
+			if( fileObject == null) {
+				fileObject = new VirtualFileObject(sourceUnit, Kind.OTHER);
+			}
+			
 			fileManager.cache(fileObject, CharBuffer.wrap(sourceUnit.getContents()));
 			AST ast = createAST(compilerOptions, apiLevel, context);
 			ast.setDefaultNodeFlag(ASTNode.ORIGINAL);
@@ -240,6 +247,19 @@ class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			return findTargetDOM(filesToUnits, diag.getSource());
 		}
 		return Optional.empty();
+	}
+
+	private static Path toOSPath(org.eclipse.jdt.internal.compiler.env.ICompilationUnit sourceUnit) {
+		String unitPath = new String(sourceUnit.getFileName());
+		IFile file = ResourcesPlugin.getWorkspace().getRoot().getFile(org.eclipse.core.runtime.Path.fromPortableString(new String(sourceUnit.getFileName())));
+		if (file.isAccessible()) {
+			return file.getLocation().toPath();
+		}
+		File tentativeOSFile = new File(unitPath);
+		if (tentativeOSFile.isFile()) {
+			return tentativeOSFile.toPath();
+		}
+		return null;
 	}
 
 	private AST createAST(Map<String, String> options, int level, Context context) {
