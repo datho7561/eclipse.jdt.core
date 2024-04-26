@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?pde version="3.8"?>
+<target name="JDT Target Platform">
+	<locations>
+		<location includeAllPlatforms="false" includeConfigurePhase="true" includeMode="planner" includeSource="true" type="InstallableUnit">
+			<repository location="https://download.eclipse.org/eclipse/updates/4.32-I-builds/"/>
+			<unit id="jakarta.annotation-api" version="0.0.0"/>
+			<unit id="jakarta.inject.jakarta.inject-api" version="0.0.0"/>
+			<unit id="org.eclipse.core.runtime.feature.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.e4.tools.persistence.feature.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.e4.ui.progress" version="0.0.0"/>
+			<unit id="org.eclipse.e4.ui.progress.source" version="0.0.0"/>
+			<unit id="org.eclipse.ecf.core.feature.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.ecf.core.feature.source.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.ecf.core.ssl.feature.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.ecf.core.ssl.feature.source.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.ecf.filetransfer.feature.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.ecf.filetransfer.feature.source.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.ecf.filetransfer.httpclient5.feature.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.ecf.filetransfer.httpclient5.feature.source.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.ecf.filetransfer.httpclientjava.feature.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.ecf.filetransfer.httpclientjava.feature.source.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.ecf.filetransfer.ssl.feature.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.ecf.filetransfer.ssl.feature.source.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.equinox.executable.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.equinox.p2.discovery.feature.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.equinox.p2.discovery.feature.source.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.equinox.p2.sdk.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.equinox.sdk.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.sdk.examples.source.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.sdk.ide" version="0.0.0"/>
+			<unit id="org.eclipse.test.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.tips.feature.feature.group" version="0.0.0"/>
+			<unit id="org.eclipse.tips.feature.source.feature.group" version="0.0.0"/>
+		</location>
+	</locations>
+</target>
