@@ -37,6 +37,7 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCBlock;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
+import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.DiagnosticSource;
 import com.sun.tools.javac.util.JCDiagnostic;
@@ -100,6 +101,9 @@ public class JavacProblemConverter {
 			}
 			case JCVariableDecl JCVariableDecl -> {
 				return getDiagnosticPosition(jcDiagnostic, JCVariableDecl);
+			}
+			case JCFieldAccess jcFieldAccess -> {
+				return getDiagnosticPosition(jcDiagnostic, jcFieldAccess);
 			}
 			default -> {
 				org.eclipse.jface.text.Position result = getMissingReturnMethodDiagnostic(jcDiagnostic, context);
@@ -253,6 +257,19 @@ public class JavacProblemConverter {
 			!jcClassDecl.getMembers().isEmpty() && jcClassDecl.getStartPosition() != jcClassDecl.getMembers().get(0).getStartPosition()) {
 			try {
 				String name = jcClassDecl.getSimpleName().toString();
+				return getDiagnosticPosition(name, startPosition, jcDiagnostic);
+			} catch (IOException ex) {
+				ILog.get().error(ex.getMessage(), ex);
+			}
+		}
+		return getDefaultPosition(jcDiagnostic);
+	}
+
+	private static org.eclipse.jface.text.Position getDiagnosticPosition(JCDiagnostic jcDiagnostic, JCFieldAccess jcFieldAccess) {
+		int startPosition = (int) jcDiagnostic.getPosition();
+		if (startPosition != Position.NOPOS) {
+			try {
+				String name = jcFieldAccess.name.toString();
 				return getDiagnosticPosition(name, startPosition, jcDiagnostic);
 			} catch (IOException ex) {
 				ILog.get().error(ex.getMessage(), ex);
