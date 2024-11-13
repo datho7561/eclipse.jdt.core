@@ -22,6 +22,7 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.WorkingCopyOwner;
+import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTRequestor;
@@ -186,6 +187,15 @@ public class CompilationUnitResolverDiscoveryTest extends ConverterTestSetup {
 				int apiLevel, Map<String, String> compilerOptions, IJavaProject project,
 				WorkingCopyOwner workingCopyOwner, int flags, IProgressMonitor monitor) {
 			// irrelevant for test
+		}
+
+		@Override
+		public CompilationUnit findProblems(org.eclipse.jdt.internal.core.CompilationUnit unitElement,
+				WorkingCopyOwner workingCopyOwner, Map<String, CategorizedProblem[]> problems, int astLevel,
+				int reconcileFlags, Map<String, String> options, boolean resolveBindings, IProgressMonitor monitor)
+				throws JavaModelException {
+			// irrelevant for test
+			return null;
 		}
 	}
 }

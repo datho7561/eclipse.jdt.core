@@ -15,7 +15,9 @@ import java.util.Map;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.WorkingCopyOwner;
+import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.dom.ASTRequestor;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FileASTRequestor;
@@ -119,4 +121,28 @@ public interface ICompilationUnitResolver {
 	 */
 	CompilationUnit toCompilationUnit(org.eclipse.jdt.internal.compiler.env.ICompilationUnit sourceUnit, final boolean initialNeedsToResolveBinding, IJavaProject project, List<Classpath> classpaths, int focalPosition,
 			int apiLevel, Map<String, String> compilerOptions, WorkingCopyOwner parsedUnitWorkingCopyOwner, WorkingCopyOwner typeRootWorkingCopyOwner, int flags, IProgressMonitor monitor);
+
+	/**
+	 * Collect problems for the compilation unit, potentially returning an AST of it.
+	 *
+	 * @param unitElement the unit to collect the problems of
+	 * @param workingCopyOwner the working copy owner
+	 * @param problems map of problems to populate
+	 * @param astLevel if set to NO_AST, no AST will be returned. Otherwise, the corresponding AST will be returned.
+	 * @param reconcileFlags the flags to use
+	 * @param options the map of compiler options to use
+	 * @param resolveBindings true if bindings should be resolved, false otherwise
+	 * @param monitor the progress monitor
+	 * @return null if astLevel is NO_AST, or the new AST otherwise
+	 * @throws JavaModelException
+	 */
+	CompilationUnit findProblems(org.eclipse.jdt.internal.core.CompilationUnit unitElement,
+			WorkingCopyOwner workingCopyOwner,
+			Map<String, CategorizedProblem[]> problems,
+			int astLevel,
+			int reconcileFlags,
+			Map<String, String> options,
+			boolean resolveBindings,
+			IProgressMonitor monitor)
+			throws JavaModelException;
 }

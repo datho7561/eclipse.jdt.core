@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -142,6 +143,22 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				return findTargetDOM(filesToUnits, diag.getSource());
 			}
 			return Optional.empty();
+		}
+	}
+	
+	private final class CollectDiagnosticsInMap implements DiagnosticListener<JavaFileObject> {
+		private final JavacProblemConverter problemConverter;
+		private final List<IProblem> problemCollection;
+
+		private CollectDiagnosticsInMap(
+				JavacProblemConverter problemConverter) {
+			this.problemConverter = problemConverter;
+			this.problemCollection = new ArrayList<>();
+		}
+
+		@Override
+		public void report(Diagnostic<? extends JavaFileObject> diagnostic) {
+			problemCollection.add(problemConverter.createJavacProblem(diagnostic));
 		}
 	}
 
@@ -1104,5 +1121,285 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 
 		return false;
+	}
+
+	@Override
+	public CompilationUnit findProblems(org.eclipse.jdt.internal.core.CompilationUnit unitElement,
+			WorkingCopyOwner workingCopyOwner, Map<String, CategorizedProblem[]> groupedProblems, int astLevel,
+			int reconcileFlags, Map<String, String> compilerOptions, boolean resolveBindings, IProgressMonitor monitor)
+			throws JavaModelException {
+		// Implementation is a hacked together copy of toCompilationUnit
+		IJavaProject javaProject = unitElement.getJavaProject();
+		var compiler = ToolProvider.getSystemJavaCompiler();
+		Context context = new Context();
+		CachingJarsJavaFileManager.preRegister(context);
+		Map<JavaFileObject, CompilationUnit> filesToUnits = new HashMap<>();
+		final UnusedProblemFactory unusedProblemFactory = new UnusedProblemFactory(new DefaultProblemFactory(), compilerOptions);
+		var problemConverter = new JavacProblemConverter(compilerOptions, context);
+		CollectDiagnosticsInMap diagnosticListener = new CollectDiagnosticsInMap(problemConverter);
+		MultiTaskListener.instance(context).add(new TaskListener() {
+			@Override
+			public void finished(TaskEvent e) {
+				if (e.getCompilationUnit() instanceof JCCompilationUnit u) {
+					problemConverter.registerUnit(e.getSourceFile(), u);
+				}
+
+				if (e.getKind() == TaskEvent.Kind.ANALYZE) {
+					final JavaFileObject file = e.getSourceFile();
+					final CompilationUnit dom = filesToUnits.get(file);
+					if (dom == null) {
+						return;
+					}
+
+					final TypeElement currentTopLevelType = e.getTypeElement();
+					UnusedTreeScanner<Void, Void> scanner = new UnusedTreeScanner<>() {
+						@Override
+						public Void visitClass(ClassTree node, Void p) {
+							if (node instanceof JCClassDecl classDecl) {
+								/**
+								 * If a Java file contains multiple top-level types, it will
+								 * trigger multiple ANALYZE taskEvents for the same compilation
+								 * unit. Each ANALYZE taskEvent corresponds to the completion
+								 * of analysis for a single top-level type. Therefore, in the
+								 * ANALYZE task event listener, we only visit the class and nested
+								 * classes that belong to the currently analyzed top-level type.
+								 */
+								if (Objects.equals(currentTopLevelType, classDecl.sym)
+									|| !(classDecl.sym.owner instanceof PackageSymbol)) {
+									return super.visitClass(node, p);
+								} else {
+									return null; // Skip if it does not belong to the currently analyzed top-level type.
+								}
+							}
+
+							return super.visitClass(node, p);
+						}
+					};
+					final CompilationUnitTree unit = e.getCompilationUnit();
+					try {
+						scanner.scan(unit, null);
+					} catch (Exception ex) {
+						ILog.get().error("Internal error when visiting the AST Tree. " + ex.getMessage(), ex);
+					}
+
+					List<CategorizedProblem> unusedProblems = scanner.getUnusedPrivateMembers(unusedProblemFactory);
+					if (!unusedProblems.isEmpty()) {
+						addProblemsToDOM(dom, unusedProblems);
+					}
+
+					List<CategorizedProblem> unusedImports = scanner.getUnusedImports(unusedProblemFactory);
+					List<? extends Tree> topTypes = unit.getTypeDecls();
+					int typeCount = topTypes.size();
+					// Once all top level types of this Java file have been resolved,
+					// we can report the unused import to the DOM.
+					if (typeCount <= 1) {
+						addProblemsToDOM(dom, unusedImports);
+					} else if (typeCount > 1 && topTypes.get(typeCount - 1) instanceof JCClassDecl lastType) {
+						if (Objects.equals(currentTopLevelType, lastType.sym)) {
+							addProblemsToDOM(dom, unusedImports);
+						}
+					}
+				}
+			}
+		});
+		// must be 1st thing added to context
+		context.put(DiagnosticListener.class, diagnosticListener);
+		boolean docEnabled = JavaCore.ENABLED.equals(compilerOptions.get(JavaCore.COMPILER_DOC_COMMENT_SUPPORT));
+		JavacUtils.configureJavacContext(context, compilerOptions, javaProject, JavacUtils.isTest(javaProject, new org.eclipse.jdt.internal.core.CompilationUnit[] { unitElement }));
+		Options.instance(context).put(Option.PROC, "only");
+		Optional.ofNullable(Platform.getProduct())
+				.map(IProduct::getApplication)
+				// if application is not a test runner (so we don't have regressions with JDT test suite because of too many problems
+				.or(() -> Optional.ofNullable(System.getProperty("eclipse.application")))
+				.filter(name -> !name.contains("test") && !name.contains("junit"))
+				 // continue as far as possible to get extra warnings about unused
+				.ifPresent(id -> Options.instance(context).put("should-stop.ifError", CompileState.GENERATE.toString()));
+		var fileManager = (JavacFileManager)context.get(JavaFileManager.class);
+		List<JavaFileObject> fileObjects = new ArrayList<>(); // we need an ordered list of them
+		File unitFile;
+		if (javaProject != null && javaProject.getResource() != null) {
+			// path is relative to the workspace, make it absolute
+			IResource asResource = javaProject.getProject().getParent().findMember(new String(unitElement.getFileName()));
+			if (asResource != null) {
+				unitFile = asResource.getLocation().toFile();
+			} else {
+				unitFile = new File(new String(unitElement.getFileName()));
+			}
+		} else {
+			unitFile = new File(new String(unitElement.getFileName()));
+		}
+		Path sourceUnitPath = null;
+		if (!unitFile.getName().endsWith(".java") || unitElement.getFileName() == null || unitElement.getFileName().length == 0) {
+			String uri1 = unitFile.toURI().toString().replaceAll("%7C", "/");
+			if( uri1.endsWith(".class")) {
+				String[] split= uri1.split("/");
+				String lastSegment = split[split.length-1].replace(".class", ".java");
+				sourceUnitPath = Path.of(lastSegment);
+			}
+			if( sourceUnitPath == null ) 
+				sourceUnitPath = Path.of(new File("whatever.java").toURI());
+		} else {
+			sourceUnitPath = Path.of(unitFile.toURI());
+		}
+		var fileObject = fileManager.getJavaFileObject(sourceUnitPath);
+		fileManager.cache(fileObject, CharBuffer.wrap(unitElement.getContents()));
+		
+		CompilationUnit res = null;
+		if (astLevel != ICompilationUnit.NO_AST) {
+			AST ast = createAST(compilerOptions, astLevel, context, reconcileFlags);
+			res = ast.newCompilationUnit();
+			filesToUnits.put(fileObject, res);
+		}
+		fileObjects.add(fileObject);
+
+
+		JCCompilationUnit javacCompilationUnit = null;
+		Iterable<String> options = configureAPIfNecessary(fileManager) ? null : Arrays.asList("-proc:none");
+		JavacTask task = ((JavacTool)compiler).getTask(null, fileManager, null /* already added to context */, options, List.of() /* already set */, fileObjects, context);
+		{
+			// don't know yet a better way to ensure those necessary flags get configured
+			var javac = com.sun.tools.javac.main.JavaCompiler.instance(context);
+			javac.keepComments = true;
+			javac.genEndPos = true;
+			javac.lineDebugInfo = true;
+		}
+
+		List<JCCompilationUnit> javacCompilationUnits = new ArrayList<>();
+		try {
+			var elements = task.parse().iterator();
+			var aptPath = fileManager.getLocation(StandardLocation.ANNOTATION_PROCESSOR_PATH);
+			if ((reconcileFlags & ICompilationUnit.FORCE_PROBLEM_DETECTION) != 0
+				|| (aptPath != null && aptPath.iterator().hasNext())) {
+				task.analyze();
+			}
+
+			Throwable cachedThrown = null;
+
+			if (elements.hasNext() && elements.next() instanceof JCCompilationUnit u) {
+				javacCompilationUnit = u;
+				javacCompilationUnits.add(u);
+			} else {
+				throw new IllegalStateException("expected a compiled cu");
+			}
+			try {
+				String rawText = null;
+				try {
+					rawText = fileObject.getCharContent(true).toString();
+				} catch( IOException ioe) {
+					ILog.get().error(ioe.getMessage(), ioe);
+					return null;
+				}
+				JavacConverter converter = null;
+				if (astLevel != ICompilationUnit.NO_AST) {
+					AST ast = res.ast;
+					converter = new JavacConverter(ast, javacCompilationUnit, context, rawText, docEnabled, -1);
+					converter.populateCompilationUnit(res, javacCompilationUnit);
+					// javadoc problems explicitly set as they're not sent to DiagnosticListener (maybe find a flag to do it?)
+					var javadocProblems = converter.javadocDiagnostics.stream()
+							.map(problemConverter::createJavacProblem)
+							.filter(Objects::nonNull)
+							.toArray(IProblem[]::new);
+					if (javadocProblems.length > 0) {
+						int initialSize = res.getProblems().length;
+						var newProblems = Arrays.copyOf(res.getProblems(), initialSize + javadocProblems.length);
+						System.arraycopy(javadocProblems, 0, newProblems, initialSize, javadocProblems.length);
+						res.setProblems(newProblems);
+					}
+					List<org.eclipse.jdt.core.dom.Comment> javadocComments = new ArrayList<>();
+					res.accept(new ASTVisitor(true) {
+						@Override
+						public void postVisit(ASTNode node) { // fix some positions
+							if( node.getParent() != null ) {
+								if( node.getStartPosition() < node.getParent().getStartPosition()) {
+									int parentEnd = node.getParent().getStartPosition() + node.getParent().getLength();
+									if( node.getStartPosition() >= 0 ) {
+										node.getParent().setSourceRange(node.getStartPosition(), parentEnd - node.getStartPosition());
+									}
+								}
+							}
+						}
+						@Override
+						public boolean visit(Javadoc javadoc) {
+							javadocComments.add(javadoc);
+							return true;
+						}
+					});
+					addCommentsToUnit(javadocComments, res);
+					addCommentsToUnit(converter.notAttachedComments, res);
+					attachMissingComments(res, context, rawText, converter, compilerOptions);
+					if ((reconcileFlags & ICompilationUnit.ENABLE_STATEMENTS_RECOVERY) == 0) {
+						// remove all possible RECOVERED node
+						res.accept(new ASTVisitor(false) {
+							private boolean reject(ASTNode node) {
+								return (node.getFlags() & ASTNode.RECOVERED) != 0
+									|| (node instanceof FieldDeclaration field && field.fragments().isEmpty())
+									|| (node instanceof VariableDeclarationStatement decl && decl.fragments().isEmpty());
+							}
+	
+							@Override
+							public boolean preVisit2(ASTNode node) {
+								if (reject(node)) {
+									StructuralPropertyDescriptor prop = node.getLocationInParent();
+									if ((prop instanceof SimplePropertyDescriptor simple && !simple.isMandatory())
+										|| (prop instanceof ChildPropertyDescriptor child && !child.isMandatory())
+										|| (prop instanceof ChildListPropertyDescriptor)) {
+										node.delete();
+									} else if (node.getParent() != null) {
+										node.getParent().setFlags(node.getParent().getFlags() | ASTNode.RECOVERED);
+									}
+									return false; // branch will be cut, no need to inspect deeper
+								}
+								return true;
+							}
+	
+							@Override
+							public void postVisit(ASTNode node) {
+								// repeat on postVisit so trimming applies bottom-up
+								preVisit2(node);
+							}
+						});
+					}
+				}
+				if (resolveBindings) {
+					JavacBindingResolver resolver = new JavacBindingResolver(javaProject, task, context, converter, workingCopyOwner, javacCompilationUnits);
+					resolver.isRecoveringBindings = (reconcileFlags & ICompilationUnit.ENABLE_BINDINGS_RECOVERY) != 0;
+					if (astLevel != ICompilationUnit.NO_AST) {
+						res.ast.setBindingResolver(resolver);
+					}
+				}
+				//
+				if (astLevel != ICompilationUnit.NO_AST) {
+					res.ast.setOriginalModificationCount(res.ast.modificationCount()); // "un-dirty" AST so Rewrite can process it
+					res.ast.setDefaultNodeFlag(res.ast.getDefaultNodeFlag() & ~ASTNode.ORIGINAL);
+				}
+			} catch (Throwable thrown) {
+				if (cachedThrown == null) {
+					cachedThrown = thrown;
+				}
+				ILog.get().error("Internal failure while parsing or converting AST for unit " + new String(unitElement.getFileName()));
+				ILog.get().error(thrown.getMessage(), thrown);
+			}
+			if (!resolveBindings) {
+				destroy(context);
+			}
+			if (cachedThrown != null) {
+				throw new RuntimeException(cachedThrown);
+			}
+		} catch (IOException ex) {
+			ILog.get().error(ex.getMessage(), ex);
+		}
+		
+		// compute grouped problems
+		Map<String, List<CategorizedProblem>> tempGroupedProblems = new HashMap<>();
+		for (IProblem problem : diagnosticListener.problemCollection) {
+			if (problem instanceof CategorizedProblem categorizedProblem) {
+				tempGroupedProblems.computeIfAbsent(categorizedProblem.getMarkerType(), key -> new ArrayList<>()).add(categorizedProblem);
+			}
+		}
+		for (Entry<String, List<CategorizedProblem>> entry : tempGroupedProblems.entrySet()) {
+			groupedProblems.put(entry.getKey(), entry.getValue().toArray(CategorizedProblem[]::new));
+		}
+
+		return res;
 	}
 }

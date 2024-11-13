@@ -20,7 +20,7 @@ import org.eclipse.core.runtime.Platform;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.internal.core.dom.ICompilationUnitResolver;
 
-class CompilationUnitResolverDiscovery {
+public class CompilationUnitResolverDiscovery {
 	private static final String SELECTED_SYSPROP = "ICompilationUnitResolver"; //$NON-NLS-1$
 	private static final String COMPILATION_UNIT_RESOLVER_EXTPOINT_ID = "compilationUnitResolver" ; //$NON-NLS-1$
 	private static boolean ERROR_LOGGED = false;
@@ -28,7 +28,7 @@ class CompilationUnitResolverDiscovery {
 	private static String lastId;
 	private static IConfigurationElement lastExtension;
 
-	static ICompilationUnitResolver getInstance() {
+	public static ICompilationUnitResolver getInstance() {
 		String id = System.getProperty(SELECTED_SYSPROP);
 		IConfigurationElement configElement = getConfigurationElement(id);
 		lastId = id;

@@ -106,6 +106,32 @@ class CompilationUnitResolver extends Compiler {
 			return CompilationUnitResolver.toCompilationUnit(sourceUnit, initialNeedsToResolveBinding, project,
 					classpaths, focalPosition == -1 ? null : new NodeSearcher(focalPosition), apiLevel, compilerOptions, parsedUnitWorkingCopyOwner, typeRootWorkingCopyOwner, flags, monitor);
 		}
+
+		@Override
+		public CompilationUnit findProblems(org.eclipse.jdt.internal.core.CompilationUnit unitElement, WorkingCopyOwner workingCopyOwner,
+				Map<String, CategorizedProblem[]> problems, int astLevel, int reconcileFlags, Map<String, String> options, boolean resolveBindings,
+				IProgressMonitor monitor) throws JavaModelException {
+			CompilationUnitDeclaration cud = null;
+			try {
+				cud = CompilationUnitProblemFinder.process(unitElement, workingCopyOwner, problems, astLevel != ICompilationUnit.NO_AST, reconcileFlags, monitor);
+				if (monitor != null) monitor.worked(1);
+				if (astLevel != ICompilationUnit.NO_AST && cud != null) {
+					return AST.convertCompilationUnit(
+							astLevel,
+							cud,
+							options,
+							resolveBindings,
+							unitElement,
+							reconcileFlags,
+							monitor);
+				}
+				return null;
+			} finally {
+				if (cud != null) {
+					cud.cleanUp();
+				}
+			}
+		}
 	}
 
 	private static ECJCompilationUnitResolver FACADE;
