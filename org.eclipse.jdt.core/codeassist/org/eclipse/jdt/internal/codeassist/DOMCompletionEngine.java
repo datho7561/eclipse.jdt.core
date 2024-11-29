@@ -752,6 +752,35 @@ public class DOMCompletionEngine implements Runnable {
 			}
 			current = current.getParent();
 		}
+
+		// handle favourite members
+
+		if (this.requestor.getFavoriteReferences() == null) {
+			return;
+		}
+
+		List<IType> keysToResolve = new ArrayList<>();
+		IJavaProject project = this.modelUnit.getJavaProject();
+		for (String favouriteReference: this.requestor.getFavoriteReferences()) {
+			if (favouriteReference.endsWith(".*")) { //$NON-NLS-1$
+				favouriteReference = favouriteReference.substring(0, favouriteReference.length() - 2);
+			}
+			String packageName = favouriteReference.substring(0, favouriteReference.lastIndexOf('.'));
+			String typeName = favouriteReference.substring(favouriteReference.lastIndexOf('.') + 1);
+			findTypes(typeName, SearchPattern.R_EXACT_MATCH, packageName).forEach(keysToResolve::add);
+		}
+		ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+		parser.setProject(project);
+		if (!keysToResolve.isEmpty()) {
+			IBinding[] bindings = parser.createBindings(keysToResolve.toArray(IType[]::new), this.monitor);
+			for (IBinding binding : bindings) {
+				if (binding instanceof ITypeBinding typeBinding) {
+					processMembers(this.toComplete, typeBinding, scope, true);
+				} else {
+					ILog.get().warn("expected the favourite reference to be a Type"); //$NON-NLS-1$
+				}
+			}
+		}
 	}
 
 	private void completeMethodModifiers(MethodDeclaration methodDeclaration) {
