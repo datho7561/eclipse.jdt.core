@@ -3734,59 +3734,15 @@ public static final void replace(char[] array, char[] toBeReplaced, char replace
  * @throws NullPointerException if the given array is null
  */
 public static final char[] replace(
-	char[] array,
-	char[] toBeReplaced,
-	char[] replacementChars) {
-
-	int max = array.length;
-	int replacedLength = toBeReplaced.length;
-	int replacementLength = replacementChars.length;
-
-	int[] starts = new int[5];
-	int occurrenceCount = 0;
-
-	if (!equals(toBeReplaced, replacementChars)) {
-
-		next : for (int i = 0; i < max;) {
-			int index = indexOf(toBeReplaced, array, true, i);
-			if (index == -1) {
-				i++;
-				continue next;
-			}
-			if (occurrenceCount == starts.length) {
-				System.arraycopy(
-					starts,
-					0,
-					starts = new int[occurrenceCount * 2],
-					0,
-					occurrenceCount);
-			}
-			starts[occurrenceCount++] = index;
-			i = index + replacedLength;
+		char[] array,
+		char[] toBeReplaced,
+		char[] replacementChars) {
+		String s1 = new String(array);
+		String myRet = s1.replace(new String(toBeReplaced), new String(replacementChars));
+		if( myRet.equals(s1)) {
+			return array;
 		}
-	}
-	if (occurrenceCount == 0)
-		return array;
-	char[] result =
-		new char[max
-			+ occurrenceCount * (replacementLength - replacedLength)];
-	int inStart = 0, outStart = 0;
-	for (int i = 0; i < occurrenceCount; i++) {
-		int offset = starts[i] - inStart;
-		System.arraycopy(array, inStart, result, outStart, offset);
-		inStart += offset;
-		outStart += offset;
-		System.arraycopy(
-			replacementChars,
-			0,
-			result,
-			outStart,
-			replacementLength);
-		inStart += replacedLength;
-		outStart += replacementLength;
-	}
-	System.arraycopy(array, inStart, result, outStart, max - inStart);
-	return result;
+		return myRet.toCharArray();
 }
 
 /**
