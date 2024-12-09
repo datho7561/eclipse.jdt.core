@@ -1352,7 +1352,7 @@ public class DOMCompletionEngine implements Runnable {
 					binding instanceof IMethodBinding methodBinding ? methodBinding.getReturnType() :
 					binding instanceof IVariableBinding variableBinding ? variableBinding.getType() :
 					this.toComplete.getAST().resolveWellKnownType(Object.class.getName())) +
-				RelevanceConstants.R_UNQUALIFIED + // TODO: add logic
+				computeRelevanceForQualification(false) + // TODO: is this always false?
 				CompletionEngine.computeRelevanceForRestrictions(IAccessRule.K_ACCESSIBLE) //no access restriction for class field
 				//RelevanceConstants.R_NON_INHERITED // TODO: when is this active?
 				);
@@ -1437,12 +1437,38 @@ public class DOMCompletionEngine implements Runnable {
 		} else if (this.toComplete instanceof MarkerAnnotation) {
 			res.setTokenRange(this.offset, this.offset);
 		}
+		boolean inImports = false;
+		boolean inSamePackage = false;
+		boolean fromCurrentCU = this.modelUnit.equals(type.getCompilationUnit());
+		boolean overlappingTypeName = false;
+		try {
+			inImports = Stream.of(this.modelUnit.getImports()).anyMatch(id -> {
+				return id.getElementName().equals(type.getFullyQualifiedName());
+			});
+			IPackageDeclaration[] packageDecls = this.modelUnit.getPackageDeclarations();
+			if (packageDecls != null && packageDecls.length > 1) {
+				inSamePackage = this.modelUnit.getPackageDeclarations()[0].getElementName().equals(type.getPackageFragment().getElementName());
+			} else {
+				inSamePackage = type.getPackageFragment().getElementName().isEmpty();
+			}
+			overlappingTypeName = Stream.of(this.modelUnit.getAllTypes()).anyMatch(t -> t.getElementName().equals(type.getElementName()))
+					|| Stream.of(this.modelUnit.getImports()).anyMatch(id -> {
+						String eltName = id.getElementName();
+						if (eltName.contains(".")) { //$NON-NLS-1$
+							eltName = eltName.substring(eltName.lastIndexOf('.') + 1);
+						}
+						return eltName.equals(type.getElementName());
+					});
+		} catch (JavaModelException e) {
+			// default to false
+		}
 		res.completionEngine = this.nestedEngine;
 		res.nameLookup = this.nameEnvironment.nameLookup;
 		int relevance = RelevanceConstants.R_DEFAULT
 				+ RelevanceConstants.R_RESOLVED
 				+ RelevanceConstants.R_INTERESTING
-				+ RelevanceConstants.R_NON_RESTRICTED;
+				+ RelevanceConstants.R_NON_RESTRICTED
+				+ computeRelevanceForQualification(!fromCurrentCU && ((!inSamePackage && !inImports) || overlappingTypeName)); // TODO: improve the `prefixRequired` calculation
 		relevance += computeRelevanceForCaseMatching(this.prefix.toCharArray(), simpleName, this.assistOptions);
 		try {
 			if (type.isAnnotation()) {
@@ -2034,6 +2060,17 @@ public class DOMCompletionEngine implements Runnable {
 		}
 
 		return res;
+	}
+
+	private int computeRelevanceForQualification(boolean prefixRequired) {
+		boolean insideQualifiedReference = !this.prefix.equals(this.qualifiedPrefix);
+		if (!prefixRequired && !insideQualifiedReference) {
+			return RelevanceConstants.R_UNQUALIFIED;
+		}
+		if (prefixRequired && insideQualifiedReference) {
+			return RelevanceConstants.R_QUALIFIED;
+		}
+		return 0;
 	}
 
 	/**
