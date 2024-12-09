@@ -558,7 +558,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 //		Object o2 = l2.bodyDeclarations().get(0);
 		return res;
 	}
-
+	
 	private Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit> parse(org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] sourceUnits, int apiLevel, 
 			Map<String, String> compilerOptions, boolean resolveBindings, int flags, IJavaProject javaProject, WorkingCopyOwner workingCopyOwner, 
 			int focalPoint, IProgressMonitor monitor) {

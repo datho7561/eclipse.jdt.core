@@ -944,7 +944,7 @@ class CompilationUnitResolver extends Compiler {
 			}
 		}
 		Requestor requestor = new Requestor();
-		resolve(cus, bindingKeys, requestor, apiLevel, compilerOptions, javaProject, owner, flags, monitor);
+		getInstance().resolve(cus, bindingKeys, requestor, apiLevel, compilerOptions, javaProject, owner, flags, monitor);
 		return requestor.bindings;
 	}
 	/*
