@@ -467,14 +467,20 @@ public class DOMCodeSelector {
 				while (type == null && cursor != null) {
 					if (cursor.getParent() instanceof VariableDeclarationFragment declFragment) {
 						type = declFragment.resolveBinding().getType();
-					}
-					else if (cursor.getParent() instanceof MethodInvocation methodInvocation) {
+					} else if (cursor.getParent() instanceof MethodInvocation methodInvocation) {
 						IMethodBinding methodInvocationBinding = methodInvocation.resolveMethodBinding();
-						int index = methodInvocation.arguments().indexOf(cursor);
-						type = methodInvocationBinding.getParameterTypes()[index];
+						if (methodInvocationBinding != null) {
+							int index = methodInvocation.arguments().indexOf(cursor);
+							type = methodInvocationBinding.getParameterTypes()[index];
+						} else {
+							cursor = null;
+						}
 					} else {
 						cursor = cursor.getParent();
 					}
+				}
+				if (type == null) {
+					return null;
 				}
 
 				IMethodBinding boundMethod = type.getDeclaredMethods()[0];
