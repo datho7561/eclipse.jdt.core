@@ -30,6 +30,7 @@ import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.TypeNameMatchRequestor;
 import org.eclipse.jdt.internal.codeassist.impl.AssistOptions;
 import org.eclipse.jdt.internal.codeassist.impl.Keywords;
+import org.eclipse.jdt.internal.compiler.env.AccessRestriction;
 import org.eclipse.jdt.internal.compiler.lookup.TypeConstants;
 import org.eclipse.jdt.internal.compiler.parser.RecoveryScanner;
 import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
@@ -40,6 +41,7 @@ import org.eclipse.jdt.internal.core.ModuleSourcePathManager;
 import org.eclipse.jdt.internal.core.SearchableEnvironment;
 import org.eclipse.jdt.internal.core.SourceType;
 import org.eclipse.jdt.internal.core.util.Messages;
+import org.eclipse.jdt.internal.core.util.Util;
 
 /**
  * A completion engine using a DOM as input (as opposed to {@link CompletionEngine} which
@@ -210,7 +212,6 @@ public class DOMCompletionEngine implements Runnable {
 //			var completionContext = new DOMCompletionContext(this.offset, completeAfter.toCharArray(),
 //					computeEnclosingElement(), defaultCompletionBindings::stream, expectedTypes, this.toComplete);
 			var completionContext = new DOMCompletionContext(this.unit, this.modelUnit, this.cuBuffer, this.offset, this.assistOptions, defaultCompletionBindings);
-			this.nestedEngine.completionToken = completionContext.getToken();
 			this.requestor.acceptContext(completionContext);
 
 			this.expectedTypes = completionContext.expectedTypes;
@@ -1078,9 +1079,6 @@ public class DOMCompletionEngine implements Runnable {
 			// currently, this is always run, even when not using the default completion,
 			// because method argument guessing uses it.
 			scrapeAccessibleBindings(defaultCompletionBindings);
-			if (shouldSuggestPackages(toComplete)) {
-				suggestPackages(toComplete);
-			}
 			if (context instanceof SimpleName simple && !(simple.getParent() instanceof Name)) {
 				for (ImportDeclaration importDecl : (List<ImportDeclaration>)this.unit.imports()) {
 					if (importDecl.isStatic()) {
@@ -1484,8 +1482,73 @@ public class DOMCompletionEngine implements Runnable {
 		}
 		String prefix = context instanceof Name name ? name.toString() : this.prefix;
 		if (prefix != null && !prefix.isBlank()) {
-			this.nameEnvironment.findPackages(prefix.toCharArray(), this.nestedEngine);
+			Set<String> packageNames = new HashSet<>();
+			this.nameEnvironment.findPackages(prefix.toCharArray(), new ISearchRequestor() {
+
+				@Override
+				public void acceptConstructor(int modifiers, char[] simpleTypeName, int parameterCount,
+						char[] signature, char[][] parameterTypes, char[][] parameterNames, int typeModifiers,
+						char[] packageName, int extraFlags, String path, AccessRestriction access) {
+					// do nothing
+				}
+
+				@Override
+				public void acceptType(char[] packageName, char[] typeName, char[][] enclosingTypeNames, int modifiers,
+						AccessRestriction accessRestriction) {
+					// do nothing
+				}
+
+				@Override
+				public void acceptPackage(char[] packageName) {
+					String packageNameString = new String(packageName);
+					// TODO: CompletionEngine has a caching mechanism for this
+					if (isValidPackageName(packageNameString)) {
+						packageNames.add(new String(packageName));
+					}
+				}
+
+				@Override
+				public void acceptModule(char[] moduleName) {
+					// do nothing
+				}
+
+			});
+			for (String packageName : packageNames) {
+				this.requestor.accept(toPackageProposal(packageName, context));
+			}
 		}
+	}
+
+	private boolean isValidPackageName(String packageName) {
+		String[] names = packageName.split("\\."); //$NON-NLS-1$
+		for (String name : names) {
+			if (!Util.isValidFolderNameForPackage(
+					name,
+					this.modelUnit.getJavaProject().getOption(JavaCore.COMPILER_SOURCE, true),
+					this.modelUnit.getJavaProject().getOption(JavaCore.COMPILER_COMPLIANCE, true))) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private CompletionProposal toPackageProposal(String packageName, ASTNode completing) {
+		InternalCompletionProposal res = createProposal(CompletionProposal.PACKAGE_REF);
+		res.setCompletion(packageName.toCharArray());
+		res.setDeclarationSignature(packageName.toCharArray());
+		res.setPackageName(packageName.toCharArray());
+		QualifiedName qualifiedName = (QualifiedName)DOMCompletionUtil.findParent(completing, new int[] {ASTNode.QUALIFIED_NAME});
+		int relevance = RelevanceConstants.R_DEFAULT
+				+ RelevanceConstants.R_RESOLVED
+				+ RelevanceConstants.R_INTERESTING
+				+ computeRelevanceForCaseMatching(this.qualifiedPrefix.toCharArray(), packageName.toCharArray(), this.assistOptions)
+				+ computeRelevanceForQualification(true)
+				+ RelevanceConstants.R_NON_RESTRICTED;
+		res.setRelevance(relevance);
+		if (qualifiedName != null) {
+			res.setReplaceRange(qualifiedName.getStartPosition(), this.offset);
+		}
+		return res;
 	}
 
 	private void suggestTypesInPackage(String packageName) {
