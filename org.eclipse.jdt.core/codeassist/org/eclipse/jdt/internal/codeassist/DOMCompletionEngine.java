@@ -33,6 +33,7 @@ import org.eclipse.jdt.internal.codeassist.impl.Keywords;
 import org.eclipse.jdt.internal.compiler.env.AccessRestriction;
 import org.eclipse.jdt.internal.compiler.lookup.TypeConstants;
 import org.eclipse.jdt.internal.compiler.parser.RecoveryScanner;
+import org.eclipse.jdt.internal.compiler.util.HashtableOfObject;
 import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
 import org.eclipse.jdt.internal.core.JavaElementRequestor;
 import org.eclipse.jdt.internal.core.JavaModelManager;
@@ -69,7 +70,6 @@ public class DOMCompletionEngine implements Runnable {
 	private final AssistOptions assistOptions;
 	private final SearchPattern pattern;
 
-	private final CompletionEngine nestedEngine; // to reuse some utilities
 	private ExpectedTypes expectedTypes;
 	private String prefix;
 	private String qualifiedPrefix;
@@ -78,6 +78,11 @@ public class DOMCompletionEngine implements Runnable {
 	private final DOMCompletionEngineVariableDeclHandler variableDeclHandler;
 	private final DOMCompletionEngineRecoveredNodeScanner recoveredNodeScanner;
 	private final IProgressMonitor monitor;
+
+	public HashtableOfObject typeCache;
+	public int openedBinaryTypes; // used during InternalCompletionProposal#findConstructorParameterNames()
+	private AssistOptions modelUnitOptions;
+
 
 	static class Bindings {
 		// those need to be list since the order matters
@@ -113,6 +118,7 @@ public class DOMCompletionEngine implements Runnable {
 		this.offset = offset;
 		this.unit = domUnit;
 		this.modelUnit = modelUnit;
+		this.modelUnitOptions = new AssistOptions(this.modelUnit.getOptions(true));
 		this.requestor = requestor;
 		SearchableEnvironment env = null;
 		if (this.modelUnit.getJavaProject() instanceof JavaProject p && requestor != null) {
@@ -135,7 +141,9 @@ public class DOMCompletionEngine implements Runnable {
 		// TODO also honor requestor.ignore*
 		// TODO sorting/relevance: closest/prefix match should go first
 		// ...
-		this.nestedEngine = new CompletionEngine(this.nameEnvironment, this.requestor, this.modelUnit.getOptions(true), this.modelUnit.getJavaProject(), workingCopyOwner, monitor);
+		this.typeCache = new HashtableOfObject(5);
+		this.openedBinaryTypes = 0;
+
 		this.variableDeclHandler = new DOMCompletionEngineVariableDeclHandler();
 		this.recoveredNodeScanner = new DOMCompletionEngineRecoveredNodeScanner(modelUnit, offset);
 		this.monitor = monitor;
@@ -2059,7 +2067,7 @@ public class DOMCompletionEngine implements Runnable {
 			}
 		}
 
-		InternalCompletionProposal res = new InternalCompletionProposal(kind, this.offset);
+		DOMEngineProposal res = new DOMEngineProposal(this, kind, this.offset);
 		res.setName(binding.getName().toCharArray());
 		if (kind == CompletionProposal.METHOD_REF) {
 			completion += "()"; //$NON-NLS-1$
@@ -2239,12 +2247,11 @@ public class DOMCompletionEngine implements Runnable {
 			res.setDeclarationTypeName(((IType)element.getAncestor(IJavaElement.TYPE)).getFullyQualifiedName().toCharArray());
 			res.setDeclarationPackageName(element.getAncestor(IJavaElement.PACKAGE_FRAGMENT).getElementName().toCharArray());
 		}
-		res.completionEngine = this.nestedEngine;
 		res.nameLookup = this.nameEnvironment.nameLookup;
 
 		res.setRelevance(CompletionEngine.computeBaseRelevance() +
 				CompletionEngine.computeRelevanceForResolution() +
-				this.nestedEngine.computeRelevanceForInterestingProposal() +
+				computeRelevanceForInterestingProposal() +
 				(res.isConstructor ? 0 : CompletionEngine.computeRelevanceForCaseMatching(this.prefix.toCharArray(), binding.getName().toCharArray(), this.assistOptions)) +
 				computeRelevanceForExpectingType(binding instanceof ITypeBinding typeBinding ? typeBinding :
 					binding instanceof IMethodBinding methodBinding ? methodBinding.getReturnType() :
@@ -2292,7 +2299,7 @@ public class DOMCompletionEngine implements Runnable {
 	}
 
 	private CompletionProposal toProposal(IType type) {
-		InternalCompletionProposal res = new InternalCompletionProposal(CompletionProposal.TYPE_REF, this.offset);
+		DOMEngineProposal res = new DOMEngineProposal(this, CompletionProposal.TYPE_REF, this.offset);
 		char[] simpleName = type.getElementName().toCharArray();
 		char[] signature = Signature.createTypeSignature(type.getFullyQualifiedName(), true).toCharArray();
 
@@ -2386,7 +2393,6 @@ public class DOMCompletionEngine implements Runnable {
 		} catch (JavaModelException e) {
 			// there are sensible default set if accessing the model fails
 		}
-		res.completionEngine = this.nestedEngine;
 		res.nameLookup = this.nameEnvironment.nameLookup;
 		int relevance = RelevanceConstants.R_DEFAULT
 				+ RelevanceConstants.R_RESOLVED
@@ -2742,11 +2748,10 @@ public class DOMCompletionEngine implements Runnable {
 	}
 
 	private CompletionProposal toImportProposal(char[] simpleName, char[] signature, char[] packageName) {
-		InternalCompletionProposal res = new InternalCompletionProposal(CompletionProposal.TYPE_IMPORT, this.offset);
+		InternalCompletionProposal res = new DOMEngineProposal(this, CompletionProposal.TYPE_IMPORT, this.offset);
 		res.setName(simpleName);
 		res.setSignature(signature);
 		res.setPackageName(packageName);
-		res.completionEngine = this.nestedEngine;
 		res.nameLookup = this.nameEnvironment.nameLookup;
 		return res;
 	}
@@ -3056,9 +3061,9 @@ public class DOMCompletionEngine implements Runnable {
 		char[] completion = moduleName.toCharArray();
 		int relevance = CompletionEngine.computeBaseRelevance();
 		relevance += CompletionEngine.computeRelevanceForResolution();
-		relevance += this.nestedEngine.computeRelevanceForInterestingProposal();
-		relevance += this.nestedEngine.computeRelevanceForCaseMatching(prefix, completion);
-		relevance += this.nestedEngine.computeRelevanceForQualification(true);
+		relevance += computeRelevanceForInterestingProposal();
+		relevance += CompletionEngine.computeRelevanceForCaseMatching(prefix, completion, this.modelUnitOptions);
+		relevance += computeRelevanceForQualification(true);
 		if (requiredModules.contains(moduleName)) {
 			relevance += CompletionEngine.computeRelevanceForRestrictions(IAccessRule.K_ACCESSIBLE);
 		}
@@ -3085,16 +3090,44 @@ public class DOMCompletionEngine implements Runnable {
 	 * @return an internal completion proposal of the given kind
 	 */
 	protected InternalCompletionProposal createProposal(int kind) {
-		InternalCompletionProposal proposal = new DOMInternalCompletionProposal(kind, this.offset);
+		InternalCompletionProposal proposal = new DOMInternalCompletionProposal(this, kind, this.offset);
 		proposal.nameLookup = this.nameEnvironment.nameLookup;
-		proposal.completionEngine = this.nestedEngine;
 		return proposal;
 	}
 
-	private static class DOMInternalCompletionProposal extends InternalCompletionProposal {
-
-		public DOMInternalCompletionProposal(int kind, int completionLocation) {
+	private static class DOMEngineProposal extends InternalCompletionProposal {
+		private DOMCompletionEngine engine;
+		public DOMEngineProposal(DOMCompletionEngine engine, int kind, int completionLocation) {
 			super(kind, completionLocation);
+			this.engine = engine;
+		}
+
+		@Override
+		protected void incrementOpenedBinaryTypesCount() {
+			this.engine.openedBinaryTypes++;
+		}
+
+		@Override
+		protected int getOpenedBinaryTypesCount() {
+			return this.engine.openedBinaryTypes;
+		}
+
+		@Override
+		protected void addToCompletionEngineTypeCache(char[] tName, IType type) {
+			this.engine.typeCache.put(tName, type);
+		}
+
+		@Override
+		protected Object getFromEngineTypeCache(char[] tName) {
+			return this.engine.typeCache.get(tName);
+		}
+
+	}
+
+	private static class DOMInternalCompletionProposal extends DOMEngineProposal {
+
+		public DOMInternalCompletionProposal(DOMCompletionEngine engine, int kind, int completionLocation) {
+			super(engine, kind, completionLocation);
 		}
 
 		@Override
@@ -3317,5 +3350,12 @@ public class DOMCompletionEngine implements Runnable {
 			binding instanceof IMethodBinding methodBinding ? methodBinding.getDeclaringClass() :
 			binding instanceof IVariableBinding variableBinding && variableBinding.isField() ? variableBinding.getDeclaringClass() :
 			null;
+	}
+
+	int computeRelevanceForInterestingProposal(){
+		return RelevanceConstants.R_INTERESTING;
+	}
+	int computeRelevanceForResolution(){
+		return RelevanceConstants.R_RESOLVED;
 	}
 }
