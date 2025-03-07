@@ -3721,7 +3721,7 @@ public class DOMCompletionEngine implements ICompletionEngine {
 	private CompletionProposal toProposal(IType type) {
 		DOMInternalCompletionProposal res = createProposal(CompletionProposal.TYPE_REF);
 		char[] simpleName = type.getElementName().toCharArray();
-		char[] signature = Signature.createTypeSignature(type.getFullyQualifiedName(), true).toCharArray();
+		char[] signature = SignatureUtils.getSignatureForTypeKey(type.getKey()).toCharArray();
 
 		res.setSignature(signature);
 
