@@ -53,11 +53,11 @@ import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
+import org.eclipse.jdt.core.dom.JavacBindingResolver.BindingKeyException;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.RecordDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
-import org.eclipse.jdt.core.dom.JavacBindingResolver.BindingKeyException;
 import org.eclipse.jdt.internal.codeassist.KeyUtils;
 import org.eclipse.jdt.internal.compiler.codegen.ConstantPool;
 import org.eclipse.jdt.internal.core.BinaryType;
@@ -69,13 +69,10 @@ import org.eclipse.jdt.internal.core.SourceType;
 import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Kinds;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.TypeTag;
-import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.code.Kinds.Kind;
 import com.sun.tools.javac.code.Kinds.KindSelector;
 import com.sun.tools.javac.code.Scope.LookupKind;
+import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.CompletionFailure;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
@@ -84,6 +81,7 @@ import com.sun.tools.javac.code.Symbol.RootPackageSymbol;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ArrayType;
 import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.Type.ErrorType;
@@ -93,6 +91,8 @@ import com.sun.tools.javac.code.Type.JCVoidType;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.TypeVar;
 import com.sun.tools.javac.code.Type.WildcardType;
+import com.sun.tools.javac.code.TypeTag;
+import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.code.Types.FunctionDescriptorLookupError;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
@@ -919,6 +919,25 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	public String getName(boolean checkParameterized) {
 		if (this.isIntersectionType()) {
 			StringBuilder builder = new StringBuilder();
+			if (this.alternatives != null) {
+				for (int i = 0; i < this.alternatives.length; i++) {
+					builder.append(this.resolver.bindings.getTypeBinding(this.alternatives[i]).getName());
+					if (i != this.alternatives.length - 1) {
+						builder.append("&");
+					}
+				}
+			} else {
+				Type.IntersectionClassType intersectionType = (Type.IntersectionClassType) this.type;
+				builder.append(this.resolver.bindings.getTypeBinding(intersectionType.supertype_field).getName());
+				for (int i = 0; i < intersectionType.interfaces_field.size(); i++) {
+					builder.append("&");
+					builder.append(this.resolver.bindings.getTypeBinding(intersectionType.interfaces_field.get(i)).getName());
+				}
+			}
+			return builder.toString();
+		}
+		if (this.type.isUnion()) {
+			StringBuilder builder = new StringBuilder();
 			for (int i = 0; i < this.alternatives.length; i++) {
 				builder.append(this.resolver.bindings.getTypeBinding(this.alternatives[i]).getName());
 				if (i != this.alternatives.length - 1) {
@@ -988,6 +1007,35 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	protected String getQualifiedNameImpl(Type type, TypeSymbol typeSymbol, Symbol owner, boolean includeParameters) {
 		if (owner instanceof MethodSymbol) {
 			return "";
+		}
+		if (this.isIntersectionType()) {
+			StringBuilder builder = new StringBuilder();
+			if (this.alternatives != null) {
+				for (int i = 0; i < this.alternatives.length; i++) {
+					builder.append(this.resolver.bindings.getTypeBinding(this.alternatives[i]).getQualifiedName());
+					if (i != this.alternatives.length - 1) {
+						builder.append("&");
+					}
+				}
+			} else {
+				Type.IntersectionClassType intersectionType = (Type.IntersectionClassType) this.type;
+				builder.append(this.resolver.bindings.getTypeBinding(intersectionType.supertype_field).getQualifiedName());
+				for (int i = 0; i < intersectionType.interfaces_field.size(); i++) {
+					builder.append("&");
+					builder.append(this.resolver.bindings.getTypeBinding(intersectionType.interfaces_field.get(i)).getQualifiedName());
+				}
+			}
+			return builder.toString();
+		}
+		if (this.type.isUnion()) {
+			StringBuilder builder = new StringBuilder();
+			for (int i = 0; i < this.alternatives.length; i++) {
+				builder.append(this.resolver.bindings.getTypeBinding(this.alternatives[i]).getName());
+				if (i != this.alternatives.length - 1) {
+					builder.append("|");
+				}
+			}
+			return builder.toString();
 		}
 		if (type instanceof NullType) {
 			return "null";
