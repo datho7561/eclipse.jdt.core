@@ -96,6 +96,7 @@ import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.InfixExpression;
+import org.eclipse.jdt.core.dom.InfixExpression.Operator;
 import org.eclipse.jdt.core.dom.Initializer;
 import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.Javadoc;
@@ -107,6 +108,7 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.MethodRef;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.Modifier.ModifierKeyword;
 import org.eclipse.jdt.core.dom.ModuleDeclaration;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.NodeFinder;
@@ -147,8 +149,6 @@ import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
-import org.eclipse.jdt.core.dom.InfixExpression.Operator;
-import org.eclipse.jdt.core.dom.Modifier.ModifierKeyword;
 import org.eclipse.jdt.core.formatter.DefaultCodeFormatterConstants;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
@@ -1825,7 +1825,11 @@ public class DOMCompletionEngine implements ICompletionEngine {
 					if (!catchClause.getBody().statements().isEmpty()) {
 						suggestUndeclaredVariableNames(catchClause.getBody(), exceptionType, alreadySuggestedNames);
 					}
-					suggestVariableNamesForType(exceptionType, alreadySuggestedNames);
+					if (exceptionType.getTypeBounds() != null) {
+						suggestVariableNamesForType(exceptionType.getErasure(), alreadySuggestedNames);
+					} else {
+						suggestVariableNamesForType(exceptionType, alreadySuggestedNames);
+					}
 					suggestDefaultCompletions = false;
 				} else {
 					DOMThrownExceptionFinder thrownExceptionFinder = new DOMThrownExceptionFinder();

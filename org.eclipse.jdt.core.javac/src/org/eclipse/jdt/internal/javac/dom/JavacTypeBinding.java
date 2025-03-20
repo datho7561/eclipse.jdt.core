@@ -919,6 +919,25 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	public String getName(boolean checkParameterized) {
 		if (this.isIntersectionType()) {
 			StringBuilder builder = new StringBuilder();
+			if (this.alternatives != null) {
+				for (int i = 0; i < this.alternatives.length; i++) {
+					builder.append(this.resolver.bindings.getTypeBinding(this.alternatives[i]).getName());
+					if (i != this.alternatives.length - 1) {
+						builder.append("&");
+					}
+				}
+			} else {
+				Type.IntersectionClassType intersectionType = (Type.IntersectionClassType) this.type;
+				builder.append(this.resolver.bindings.getTypeBinding(intersectionType.supertype_field).getName());
+				for (int i = 0; i < intersectionType.interfaces_field.size(); i++) {
+					builder.append("&");
+					builder.append(this.resolver.bindings.getTypeBinding(intersectionType.interfaces_field.get(i)).getName());
+				}
+			}
+			return builder.toString();
+		}
+		if (this.type.isUnion()) {
+			StringBuilder builder = new StringBuilder();
 			for (int i = 0; i < this.alternatives.length; i++) {
 				builder.append(this.resolver.bindings.getTypeBinding(this.alternatives[i]).getName());
 				if (i != this.alternatives.length - 1) {
@@ -988,6 +1007,35 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	protected String getQualifiedNameImpl(Type type, TypeSymbol typeSymbol, Symbol owner, boolean includeParameters) {
 		if (owner instanceof MethodSymbol) {
 			return "";
+		}
+		if (this.isIntersectionType()) {
+			StringBuilder builder = new StringBuilder();
+			if (this.alternatives != null) {
+				for (int i = 0; i < this.alternatives.length; i++) {
+					builder.append(this.resolver.bindings.getTypeBinding(this.alternatives[i]).getQualifiedName());
+					if (i != this.alternatives.length - 1) {
+						builder.append("&");
+					}
+				}
+			} else {
+				Type.IntersectionClassType intersectionType = (Type.IntersectionClassType) this.type;
+				builder.append(this.resolver.bindings.getTypeBinding(intersectionType.supertype_field).getQualifiedName());
+				for (int i = 0; i < intersectionType.interfaces_field.size(); i++) {
+					builder.append("&");
+					builder.append(this.resolver.bindings.getTypeBinding(intersectionType.interfaces_field.get(i)).getQualifiedName());
+				}
+			}
+			return builder.toString();
+		}
+		if (this.type.isUnion()) {
+			StringBuilder builder = new StringBuilder();
+			for (int i = 0; i < this.alternatives.length; i++) {
+				builder.append(this.resolver.bindings.getTypeBinding(this.alternatives[i]).getName());
+				if (i != this.alternatives.length - 1) {
+					builder.append("|");
+				}
+			}
+			return builder.toString();
 		}
 		if (type instanceof NullType) {
 			return "null";
