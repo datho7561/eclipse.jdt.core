@@ -93,9 +93,14 @@ public class SourceIndexer extends AbstractIndexer implements ITypeRequestor, Su
 		super(document);
 		this.requestor = new SourceIndexerRequestor(this);
 	}
+
+	private boolean usedDomBasedIndexing() {
+		return Boolean.getBoolean(getClass().getSimpleName() + ".DOM_BASED_INDEXER");  //$NON-NLS-1$
+	}
+
 	@Override
 	public void indexDocument() {
-		if (Boolean.getBoolean(getClass().getSimpleName() + ".DOM_BASED_INDEXER")) { //$NON-NLS-1$
+		if (usedDomBasedIndexing()) {
 			indexDocumentFromDOM();
 			return;
 		}
@@ -156,18 +161,8 @@ public class SourceIndexer extends AbstractIndexer implements ITypeRequestor, Su
 	}
 
 	public void resolveDocument() {
-		if (this.dom != null && getUnit() instanceof org.eclipse.jdt.internal.core.CompilationUnit unit) {
-			String reducedDOM = reduceDOM(dom);
-			try {
-				ASTParser astParser = ASTParser.newParser(AST.getJLSLatest()); // we don't seek exact compilation the more tolerant the better here
-				astParser.setSource(unit); // configure projects and so on
-				astParser.setSource(reducedDOM.toCharArray()); // trimmed contents
-				astParser.setStatementsRecovery(true);
-				astParser.setResolveBindings(true);
-				this.dom = astParser.createAST(null);
-			} catch (Exception e) {
-				ILog.get().error(e.getMessage(), e);
-			}
+		if (usedDomBasedIndexing() && this.dom != null && getUnit() instanceof org.eclipse.jdt.internal.core.CompilationUnit unit) {
+			resolveDocumentDomImpl(unit);
 		} else {
 			try {
 				IPath path = new Path(this.document.getPath());
@@ -200,6 +195,20 @@ public class SourceIndexer extends AbstractIndexer implements ITypeRequestor, Su
 					trace("", e); //$NON-NLS-1$
 				}
 			}
+		}
+	}
+
+	private void resolveDocumentDomImpl(org.eclipse.jdt.internal.core.CompilationUnit unit) {
+		String reducedDOM = reduceDOM(this.dom);
+		try {
+			ASTParser astParser = ASTParser.newParser(AST.getJLSLatest()); // we don't seek exact compilation the more tolerant the better here
+			astParser.setSource(unit); // configure projects and so on
+			astParser.setSource(reducedDOM.toCharArray()); // trimmed contents
+			astParser.setStatementsRecovery(true);
+			astParser.setResolveBindings(true);
+			this.dom = astParser.createAST(null);
+		} catch (Exception e) {
+			ILog.get().error(e.getMessage(), e);
 		}
 	}
 
@@ -308,7 +317,7 @@ public class SourceIndexer extends AbstractIndexer implements ITypeRequestor, Su
 
 	@Override
 	public void indexResolvedDocument() {
-		if (Boolean.getBoolean(getClass().getSimpleName() + ".DOM_BASED_INDEXER") && this.dom != null) { //$NON-NLS-1$
+		if (usedDomBasedIndexing() && this.dom != null) {
 			// just re-run indexing, but with the resolved document (and its bindings)
 			this.dom.accept(new DOMToIndexVisitor(this));
 			this.dom = null;
