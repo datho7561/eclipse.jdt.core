@@ -758,7 +758,8 @@ public class DOMCompletionEngine implements ICompletionEngine {
 						|| simpleName.getParent() instanceof SuperFieldAccess || simpleName.getParent() instanceof SingleMemberAnnotation
 						|| simpleName.getParent() instanceof ExpressionMethodReference || simpleName.getParent() instanceof TypeMethodReference
 						|| simpleName.getParent() instanceof SuperMethodReference
-						|| simpleName.getParent() instanceof TagElement) {
+						|| simpleName.getParent() instanceof TagElement
+						|| simpleName.getParent() instanceof ClassInstanceCreation) {
 					if (!this.toComplete.getLocationInParent().getId().equals(QualifiedName.QUALIFIER_PROPERTY.getId())) {
 						context = this.toComplete.getParent();
 					}
@@ -1535,49 +1536,51 @@ public class DOMCompletionEngine implements ICompletionEngine {
 				ITypeBinding constructorTypeBinding = cic.resolveTypeBinding();
 				ITypeBinding expectedConstructorTypeBinding = null;
 				boolean exactType = false;
-				// it could be a recovered binding:
-				// 1. If it's not actually an existing type
-				// 2. If it is an existing generic type but the type arguments aren't provided
-				//    (diamond operator in a case where it can't be inferred)
-				// So, I use this mechanism to check if it's a "real" type
-				if (constructorTypeBinding != null && Stream.of(constructorTypeBinding.getDeclaredMethods()).anyMatch(IMethodBinding::isConstructor)) {
-					expectedConstructorTypeBinding = constructorTypeBinding;
-					exactType = true;
-				} else if (this.expectedTypes.getExpectedTypes() != null && !this.expectedTypes.getExpectedTypes().isEmpty() && !this.expectedTypes.getExpectedTypes().get(0).isRecovered()) {
-					expectedConstructorTypeBinding = this.expectedTypes.getExpectedTypes().get(0);
-				}
-				if (expectedConstructorTypeBinding != null) {
-					completeConstructor(expectedConstructorTypeBinding, context, this.javaProject, exactType);
-					if (cic.getType().getStartPosition() + cic.getType().getLength() < this.offset) {
-						List<CompletionProposal> expectedProposals = defaultCompletionBindings.toExpectedProposals().toList();
-						expectedProposals.forEach(this.requestor::accept);
+				if (!cic.arguments().contains(this.toComplete) || cic.arguments().get(0) == this.toComplete) {
+					// it could be a recovered binding:
+					// 1. If it's not actually an existing type
+					// 2. If it is an existing generic type but the type arguments aren't provided
+					//    (diamond operator in a case where it can't be inferred)
+					// So, I use this mechanism to check if it's a "real" type
+					if (constructorTypeBinding != null && Stream.of(constructorTypeBinding.getDeclaredMethods()).anyMatch(IMethodBinding::isConstructor)) {
+						expectedConstructorTypeBinding = constructorTypeBinding;
+						exactType = true;
+					} else if (this.expectedTypes.getExpectedTypes() != null && !this.expectedTypes.getExpectedTypes().isEmpty() && !this.expectedTypes.getExpectedTypes().get(0).isRecovered()) {
+						expectedConstructorTypeBinding = this.expectedTypes.getExpectedTypes().get(0);
 					}
-				} else if (this.toComplete == context) {
-					// completing empty args
-				} else if (!this.requestor.isIgnored(CompletionProposal.TYPE_REF) && !this.requestor.isIgnored(CompletionProposal.CONSTRUCTOR_INVOCATION)) {
-					String packageName = "";//$NON-NLS-1$
-					PackageDeclaration packageDecl = this.unit.getPackage();
-					if (packageDecl != null) {
-						packageName = packageDecl.getName().toString();
+					if (expectedConstructorTypeBinding != null) {
+						completeConstructor(expectedConstructorTypeBinding, context, this.javaProject, exactType);
+						if (cic.getType().getStartPosition() + cic.getType().getLength() < this.offset) {
+							List<CompletionProposal> expectedProposals = defaultCompletionBindings.toExpectedProposals().toList();
+							expectedProposals.forEach(this.requestor::accept);
+						}
+					} else if (this.toComplete == context) {
+						// completing empty args
+					} else if (!this.requestor.isIgnored(CompletionProposal.TYPE_REF) && !this.requestor.isIgnored(CompletionProposal.CONSTRUCTOR_INVOCATION)) {
+						String packageName = "";//$NON-NLS-1$
+						PackageDeclaration packageDecl = this.unit.getPackage();
+						if (packageDecl != null) {
+							packageName = packageDecl.getName().toString();
+						}
+						this.findTypes(this.prefix, packageName)
+						.filter(typeMatch -> {
+							try {
+								return !typeMatch.getType().isAnnotation();
+							} catch (JavaModelException e) {
+								return true;
+							}
+						}) //
+						.flatMap(typeMatch -> {
+							if (this.prefix.isEmpty()) {
+								return Stream.of(toProposal(typeMatch.getType()));
+							} else {
+								return toConstructorProposals(typeMatch.getType(), this.toComplete, false).stream();
+							}
+						}) //
+						.forEach(this.requestor::accept);
 					}
-					this.findTypes(this.prefix, packageName)
-							.filter(typeMatch -> {
-								try {
-									return !typeMatch.getType().isAnnotation();
-								} catch (JavaModelException e) {
-									return true;
-								}
-							}) //
-							.flatMap(typeMatch -> {
-								if (this.prefix.isEmpty()) {
-									return Stream.of(toProposal(typeMatch.getType()));
-								} else {
-									return toConstructorProposals(typeMatch.getType(), this.toComplete, false).stream();
-								}
-							}) //
-							.forEach(this.requestor::accept);
+					suggestDefaultCompletions = false;
 				}
-				suggestDefaultCompletions = false;
 			}
 			if (context instanceof Javadoc) {
 				suggestDefaultCompletions = false;
@@ -4217,7 +4220,7 @@ public class DOMCompletionEngine implements ICompletionEngine {
 		relevance += RelevanceConstants.R_INTERESTING;
 		relevance += (res.isConstructor() ? 0 : RelevanceUtils.computeRelevanceForCaseMatching(this.prefix.toCharArray(), binding.getName().toCharArray(), this.assistOptions));
 		// TODO: I think this is a bug
-		if (!(this.toComplete instanceof ClassInstanceCreation)) {
+		if (!(this.toComplete instanceof ClassInstanceCreation) && !(this.toComplete.getParent() instanceof ClassInstanceCreation cic && cic.arguments().get(0) == this.toComplete)) {
 			relevance += RelevanceUtils.computeRelevanceForExpectingType(binding instanceof ITypeBinding typeBinding ? typeBinding :
 				binding instanceof IMethodBinding methodBinding ? methodBinding.getReturnType() :
 					binding instanceof IVariableBinding variableBinding ? variableBinding.getType() :
@@ -4563,7 +4566,8 @@ public class DOMCompletionEngine implements ICompletionEngine {
 
 		boolean isInterface = typeBinding.isInterface();
 
-		boolean isExactName = this.toComplete instanceof ClassInstanceCreation cic && cic.getType().getStartPosition() + cic.getType().getLength() < this.offset;
+		boolean isExactName = (this.toComplete instanceof ClassInstanceCreation cic && cic.getType().getStartPosition() + cic.getType().getLength() < this.offset)
+				|| (this.toComplete.getParent() instanceof ClassInstanceCreation cic2 && cic2.getType().getStartPosition() + cic2.getType().getLength() < this.offset);
 
 		if (!this.requestor.isIgnored(CompletionProposal.ANONYMOUS_CLASS_CONSTRUCTOR_INVOCATION) && isInterface) {
 			// create an anonymous declaration: `new MyInterface() { }`;
@@ -4804,8 +4808,10 @@ public class DOMCompletionEngine implements ICompletionEngine {
 
 		if (declaringClass.getTypeArguments().length == 0
 				&& declaringClass.getErasure().getTypeParameters().length > 0) {
-			// we need to massage the signature; the signature doesn't include the type parameters
-			res.setDeclarationSignature(Signature.getTypeErasure(SignatureUtils.getSignature(declaringClass)).replace(";", "<>;").toCharArray());
+			// we need to massage the signature; the signature doesn't include the type
+			// parameters in this case for whatever reason
+			res.setDeclarationSignature(Signature.getTypeErasure(SignatureUtils.getSignature(declaringClass))
+					.replace(";", "<>;").toCharArray());
 		} else if (declaringClass.getErasure().getTypeParameters().length > 0) {
 			res.setDeclarationSignature(SignatureUtils.getSignatureChar(declaringClass.getErasure()));
 		} else {
