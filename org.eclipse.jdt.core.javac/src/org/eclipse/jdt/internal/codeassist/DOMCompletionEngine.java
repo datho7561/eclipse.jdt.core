@@ -4966,7 +4966,7 @@ public class DOMCompletionEngine implements ICompletionEngine {
 			// We should consider making those completion items here instead
 		} else {
 			if (!this.requestor.isIgnored(CompletionProposal.ANONYMOUS_CLASS_CONSTRUCTOR_INVOCATION) && isExactName) {
-				List<IMethodBinding> constructors = Stream.of(typeBinding.getDeclaredMethods()).filter(IMethodBinding::isConstructor).toList();
+				List<IMethodBinding> constructors = Stream.of(typeBinding.getErasure().getDeclaredMethods()).filter(IMethodBinding::isConstructor).toList();
 				if (constructors.isEmpty()) {
 					IMethodBinding constructorBinding = ((ClassInstanceCreation)this.toComplete).resolveConstructorBinding();
 					if (constructorBinding != null) {
@@ -4978,7 +4978,7 @@ public class DOMCompletionEngine implements ICompletionEngine {
 				}
 			}
 			try {
-				List<IMethodBinding> constructors = Stream.of(typeBinding.getErasure().getDeclaredMethods()).filter(IMethodBinding::isConstructor).toList();
+				List<IMethodBinding> constructors = Stream.of(typeBinding.getDeclaredMethods()).filter(IMethodBinding::isConstructor).toList();
 				if (!constructors.isEmpty()) {
 					for (IMethodBinding constructor: constructors) {
 						if (
@@ -5194,14 +5194,13 @@ public class DOMCompletionEngine implements ICompletionEngine {
 		res.setSignature(signature);
 		res.setOriginalSignature(signature);
 
-		if (declaringClass.getTypeArguments().length == 0
-				&& declaringClass.getErasure().getTypeParameters().length > 0) {
+		if (declaringClass.getTypeArguments().length > 0
+				&& declaringClass.getTypeParameters().length == 0) {
 			// we need to massage the signature; the signature doesn't include the type
 			// parameters in this case for whatever reason
-			res.setDeclarationSignature(Signature.getTypeErasure(SignatureUtils.getSignature(declaringClass))
-					.replace(";", "<>;").toCharArray());
-		} else if (declaringClass.getErasure().getTypeParameters().length > 0) {
-			res.setDeclarationSignature(SignatureUtils.getSignatureChar(declaringClass.getErasure()));
+			String massagedSignature = SignatureUtils.getSignature(declaringClass);
+			massagedSignature = massagedSignature.substring(0, massagedSignature.lastIndexOf('<')) + "<>;";
+			res.setDeclarationSignature(massagedSignature.toCharArray());
 		} else {
 			res.setDeclarationSignature(SignatureUtils.getSignature(declaringClass).toCharArray());
 		}
