@@ -205,6 +205,7 @@ public class DOMPatternLocator extends PatternLocator {
 		if (binding == null) {
 			return null;
 		}
+		binding = binding.getErasure();
 		if (binding.isLocal()) {
 			return binding.isMember()
 				? qualifiedSourceName(binding.getDeclaringClass()) + '.' +  binding.getName()
