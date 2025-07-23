@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.Flags;
 import org.eclipse.jdt.core.IAnnotation;
+import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IImportDeclaration;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.ILocalVariable;
@@ -1039,7 +1040,9 @@ public class DOMToModelPopulator extends ASTVisitor {
 
 		this.unitInfo.setModule(newElement);
 		try {
-			this.root.getJavaProject().setModuleDescription(newElement);
+			if (this.root.getPackageFragmentRoot().getResolvedClasspathEntry().getEntryKind() == IClasspathEntry.CPE_SOURCE) {
+				this.root.getJavaProject().setModuleDescription(newElement);
+			}
 		} catch (JavaModelException e) {
 			ILog.get().error(e.getMessage(), e);
 		}
