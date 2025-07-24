@@ -11,6 +11,7 @@
 package org.eclipse.jdt.internal.javac;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.Runtime.Version;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,6 +26,7 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -317,6 +319,7 @@ public class JavacUtils {
 						.collect(Collectors.toSet());
 
 				Collection<File> modulePathFiles = classpathEntriesToFiles(javaProject, false, entry -> (isTest || !entry.isTest()) && ClasspathEntry.isModular(entry));
+				modulePathFiles.removeIf(JavacUtils::isCorrupt);
 				if (!moduleProjects.isEmpty()) {
 					modulePathFiles = new LinkedHashSet<>(modulePathFiles);
 					moduleProjects.stream()
@@ -336,6 +339,7 @@ public class JavacUtils {
 				fileManager.setLocation(StandardLocation.MODULE_PATH, modulePathFiles);
 				Collection<File> classpathFiles = classpathEntriesToFiles(javaProject, false, entry -> (isTest || !entry.isTest()) && !ClasspathEntry.isModular(entry));
 				classpathFiles.addAll(outDirectories(javaProject, entry -> isTest || !entry.isTest()));
+				classpathFiles.removeIf(JavacUtils::isCorrupt);
 				fileManager.setLocation(StandardLocation.CLASS_PATH, classpathFiles);
 
 				if (!skipModules && !moduleSourcePathEnabled && javaProject.getModuleDescription() != null) {
@@ -511,5 +515,23 @@ public class JavacUtils {
 				}
 			}
 		});
+	}
+
+	private static boolean isCorrupt(File f) {
+		if (f == null || !f.canRead()) {
+			return true;
+		}
+		if (f.isDirectory()) {
+			return false;
+		}
+		if (f.isFile() && f.getName().endsWith(".jar")) {
+			try (JarFile jarFile = new JarFile(f)) {
+				jarFile.entries().asIterator().forEachRemaining(e -> {});
+			} catch (IOException ex) {
+				return true;
+			}
+		}
+		return false;
+
 	}
 }
