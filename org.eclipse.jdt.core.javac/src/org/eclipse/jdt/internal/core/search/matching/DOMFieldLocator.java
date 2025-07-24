@@ -28,6 +28,7 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
@@ -81,6 +82,9 @@ public class DOMFieldLocator extends DOMPatternLocator {
 	public LocatorResponse match(Name name, NodeSetWrapper nodeSet, MatchLocator locator) {
 		if (name.getLocationInParent() == SingleVariableDeclaration.NAME_PROPERTY || name.getLocationInParent() == VariableDeclarationFragment.NAME_PROPERTY) {
 			return toResponse(PatternLocator.IMPOSSIBLE_MATCH); // already caught by match(VariableDeclaration)
+		}
+		if (name.getLocationInParent() == MethodInvocation.NAME_PROPERTY) {
+			return toResponse(IMPOSSIBLE_MATCH);
 		}
 
 		if (this.fieldLocator.matchesName(this.fieldLocator.pattern.name, name.toString().toCharArray())) {
