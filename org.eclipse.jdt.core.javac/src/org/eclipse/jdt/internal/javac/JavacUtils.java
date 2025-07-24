@@ -60,17 +60,17 @@ import com.sun.tools.javac.util.Options;
 
 public class JavacUtils {
 
-	public static void configureJavacContext(Context context, Map<String, String> compilerOptions, IJavaProject javaProject, boolean isTest) {
-		configureJavacContext(context, compilerOptions, javaProject, null, null, isTest);
+	public static void configureJavacContext(Context context, Map<String, String> compilerOptions, IJavaProject javaProject, boolean isTest, boolean skipModules) {
+		configureJavacContext(context, compilerOptions, javaProject, null, null, isTest, skipModules);
 	}
 
 	public static void configureJavacContext(Context context, JavacConfig compilerConfig,
 	        IJavaProject javaProject, File output, boolean isTest) {
-		configureJavacContext(context, compilerConfig.compilerOptions().getMap(), javaProject, compilerConfig, output, isTest);
+		configureJavacContext(context, compilerConfig.compilerOptions().getMap(), javaProject, compilerConfig, output, isTest, false);
 	}
 
 	private static void configureJavacContext(Context context, Map<String, String> compilerOptions,
-	        IJavaProject javaProject, JavacConfig compilerConfig, File output, boolean isTest) {
+	        IJavaProject javaProject, JavacConfig compilerConfig, File output, boolean isTest, boolean skipModules) {
 		IClasspathEntry[] classpath = new IClasspathEntry[0];
 		if (javaProject != null && javaProject.getProject() != null) {
 			try {
@@ -103,7 +103,7 @@ public class JavacUtils {
 			JavacFileManager.preRegister(context);
 		}
 		if (javaProject instanceof JavaProject internal) {
-			configurePaths(internal, context, compilerConfig, output, isTest);
+			configurePaths(internal, context, compilerConfig, output, isTest, skipModules);
 		}
 	}
 
@@ -228,7 +228,7 @@ public class JavacUtils {
 	}
 
 	private static void configurePaths(JavaProject javaProject, Context context, JavacConfig compilerConfig,
-	        File output, boolean isTest) {
+	        File output, boolean isTest, boolean skipModules) {
 		var fileManager = (StandardJavaFileManager)context.get(JavaFileManager.class);
 		try {
 			if (compilerConfig != null && !isEmpty(compilerConfig.annotationProcessorPaths())) {
@@ -338,7 +338,7 @@ public class JavacUtils {
 				classpathFiles.addAll(outDirectories(javaProject, entry -> isTest || !entry.isTest()));
 				fileManager.setLocation(StandardLocation.CLASS_PATH, classpathFiles);
 
-				if (!moduleSourcePathEnabled && javaProject.getModuleDescription() != null) {
+				if (!skipModules && !moduleSourcePathEnabled && javaProject.getModuleDescription() != null) {
 					moduleProjects = new LinkedHashSet<>(moduleProjects);
 					moduleProjects.add(javaProject);
 					for (IJavaProject requiredModuleProject : moduleProjects) {
