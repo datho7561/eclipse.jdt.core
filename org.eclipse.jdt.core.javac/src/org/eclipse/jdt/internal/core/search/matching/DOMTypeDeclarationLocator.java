@@ -136,6 +136,10 @@ public class DOMTypeDeclarationLocator extends DOMPatternLocator {
 		String bindModName = module.getName();
 
 		if (typePattern.modulePatterns == null) {// use 'normal' matching
+			for (char[] m : typePattern.moduleNames) {
+				int ret = this.locator.matchNameValue(m, bindModName.toCharArray());
+				if (ret != IMPOSSIBLE_MATCH) return ret;
+			}
 			char[][] moduleList = getModuleList(typePattern);
 			for (char[] m : moduleList) { // match any in the list
 				int ret = this.locator.matchNameValue(m, bindModName.toCharArray());
