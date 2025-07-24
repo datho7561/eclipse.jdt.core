@@ -681,6 +681,10 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 			&& Set.of(NormalAnnotation.TYPE_NAME_PROPERTY, MarkerAnnotation.TYPE_NAME_PROPERTY, SingleMemberAnnotation.TYPE_NAME_PROPERTY).contains(node.getLocationInParent())) {
 			return true;
 		}
+		if ((fineGrain & IJavaSearchConstants.PERMITTYPE_TYPE_REFERENCE) != 0
+			&& node.getLocationInParent() == TypeDeclaration.PERMITS_TYPES_PROPERTY) {
+			return true;
+		}
 		return false;
 	}
 
