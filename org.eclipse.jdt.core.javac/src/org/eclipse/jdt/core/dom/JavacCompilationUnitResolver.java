@@ -674,7 +674,10 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		Map<JavaFileObject, File> fileObjectsToJars = new HashMap<>();
 		context.put(FILE_OBJECTS_TO_JAR_KEY, fileObjectsToJars);
 		boolean docEnabled = JavaCore.ENABLED.equals(compilerOptions.get(JavaCore.COMPILER_DOC_COMMENT_SUPPORT));
-		JavacUtils.configureJavacContext(context, compilerOptions, javaProject, JavacUtils.isTest(javaProject, sourceUnits));
+		// ignore module is a workaround for cases when we read a module-info.java from a library.
+		// Such units cause a failure later because their name is lost in ASTParser and Javac cannot treat them as modules
+		boolean ignoreModule = !Arrays.stream(sourceUnits).allMatch(u -> new String(u.getFileName()).endsWith("java"));
+		JavacUtils.configureJavacContext(context, compilerOptions, javaProject, JavacUtils.isTest(javaProject, sourceUnits), ignoreModule);
 		Options javacOptions = Options.instance(context);
 		javacOptions.put("allowStringFolding", Boolean.FALSE.toString()); // we need to keep strings as authored
 		if ((focalPoint >= 0 || !resolveBindings) && (flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) == 0) {
@@ -716,8 +719,11 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					String lastSegment = split[split.length-1].replace(".class", ".java");
 					sourceUnitPath = Path.of(lastSegment);
 				}
-				if( sourceUnitPath == null )
+				if( sourceUnitPath == null ) {
+					// This can cause trouble in case the name of the file is important
+					// eg module-info.java.
 					sourceUnitPath = Path.of(new File(System.identityHashCode(sourceUnit) + '/' + MOCK_NAME_FOR_CLASSES).toURI());
+				}
 			} else if (unitFile.getName().endsWith(".jar")) {
 				sourceUnitPath = Path.of(unitFile.toURI()).resolve(System.identityHashCode(sourceUnit) + '/' + MOCK_NAME_FOR_CLASSES);
 			} else {
