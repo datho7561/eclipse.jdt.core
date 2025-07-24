@@ -10,10 +10,13 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.core.search.matching;
 
+import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ExportsDirective;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IModuleBinding;
+import org.eclipse.jdt.core.dom.ImportDeclaration;
+import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.ModuleDeclaration;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.OpensDirective;
@@ -40,13 +43,26 @@ public class DOMModuleLocator extends DOMPatternLocator {
 	@Override
 	public LocatorResponse match(Name name, NodeSetWrapper nodeSet, MatchLocator locator) {
 		if (pattern.findReferences
-			&& (name.getLocationInParent() == RequiresDirective.NAME_PROPERTY
-			    || name.getLocationInParent() == ExportsDirective.MODULES_PROPERTY
-			    || name.getLocationInParent() == OpensDirective.MODULES_PROPERTY)
+			&& isValidLocationForModuleNameReference(name)
 			&& matchesName(name.toString().toCharArray(), pattern.name)) {
 			return toResponse(POSSIBLE_MATCH);
 		}
 		return toResponse(IMPOSSIBLE_MATCH);
+	}
+
+	private boolean isValidLocationForModuleNameReference(ASTNode name) {
+		if (name.getLocationInParent() == RequiresDirective.NAME_PROPERTY
+		    || name.getLocationInParent() == ExportsDirective.MODULES_PROPERTY
+		    || name.getLocationInParent() == OpensDirective.MODULES_PROPERTY) {
+			return true;
+		}
+		if (name.getAST().apiLevel() >= AST.JLS23 &&
+			name.getLocationInParent() == ImportDeclaration.NAME_PROPERTY &&
+			name.getParent() instanceof ImportDeclaration importDecl &&
+			Modifier.isModule(importDecl.getModifiers())) {
+			return true;
+		}
+		return false;
 	}
 
 	@Override
