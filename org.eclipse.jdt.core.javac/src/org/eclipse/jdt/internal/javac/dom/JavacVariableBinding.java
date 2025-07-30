@@ -13,6 +13,8 @@ package org.eclipse.jdt.internal.javac.dom;
 import java.util.Arrays;
 import java.util.Objects;
 
+import javax.lang.model.element.ElementKind;
+
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.IJavaElement;
@@ -282,7 +284,9 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 
 	@Override
 	public boolean isParameter() {
-		return this.variableSymbol.owner instanceof MethodSymbol && (this.variableSymbol.flags() & Flags.PARAMETER) != 0;
+		return this.variableSymbol.owner instanceof MethodSymbol ownerMethod
+				&& (this.variableSymbol.flags() & Flags.PARAMETER) != 0
+				&& this.variableSymbol.getKind() != ElementKind.EXCEPTION_PARAMETER;
 	}
 
 	@Override
