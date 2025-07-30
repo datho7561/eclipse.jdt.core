@@ -11,8 +11,11 @@
 package org.eclipse.jdt.internal.javac.dom;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
+import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.JavaModelException;
@@ -99,6 +102,47 @@ public abstract class JavacPackageBinding implements IPackageBinding {
 		}
 	}
 
+	public IJavaElement findJavaElementForClass(String fqqn) {
+		if (this.resolver.javaProject == null) {
+			return null;
+		}
+		String qnInternal = this.getQualifiedNameInternal();
+		if( fqqn.length() <= qnInternal.length() ) {
+			// Not a type name
+			return null;
+		}
+		try {
+			List<IPackageFragment> ret = Arrays.stream(this.resolver.javaProject.getAllPackageFragmentRoots())
+				.map(root -> root.getPackageFragment(qnInternal))
+				.filter(Objects::nonNull)
+				.filter(IPackageFragment::exists)
+				.collect(Collectors.toList());
+			int s = ret.size();
+			if( s == 1 ) {
+				return ret.get(0);
+			}
+
+			String relative = qnInternal == null || qnInternal.isEmpty() ? fqqn : fqqn.substring(qnInternal.length() + 1);
+			String relativePackage = relative != null && relative.contains(".") ? relative.substring(0, relative.lastIndexOf(".")) : null;
+			String cuName = relative != null && relative.contains(".") ? relative.substring(relative.lastIndexOf(".") + 1) : relative;
+			String soughtFile = cuName + ".java";
+			for( int i = 0; i < s; i++ ) {
+				IPackageFragment pf = ret.get(i);
+				if( relativePackage == null ) {
+					ICompilationUnit cu = pf.getCompilationUnit(soughtFile);
+					if( cu != null && cu.exists()) {
+						return pf;
+					}
+				}
+			}
+			// TODO need to make sure the package is accessible in the module. :|
+			return s == 0 ? null : ret.get(0);
+		} catch (JavaModelException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return null;
+		}
+	}
 	@Override
 	public IModuleBinding getModule() {
 		return this.getPackageSymbol() != null ?

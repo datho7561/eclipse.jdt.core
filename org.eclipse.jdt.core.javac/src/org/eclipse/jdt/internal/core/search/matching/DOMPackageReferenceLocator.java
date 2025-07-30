@@ -10,12 +10,14 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.core.search.matching;
 
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.internal.core.search.LocatorResponse;
+import org.eclipse.jdt.internal.javac.dom.JavacPackageBinding;
 
 public class DOMPackageReferenceLocator extends DOMPatternLocator {
 
@@ -44,7 +46,30 @@ public class DOMPackageReferenceLocator extends DOMPatternLocator {
 			String n = ipb.getName();
 			String patternName = new String(this.locator.pattern.pkgName);
 			if (patternName.equals(n)) {
-				return toResponse(ACCURATE_MATCH);
+				if( this.locator.pattern.focus == null ) {
+					// good enough
+					return toResponse(ACCURATE_MATCH);
+				}
+
+				// We have a focus of a specific package fragment.
+				// We want to make sure the class in this node is
+				// actually from this fragment, and not a similar package
+				// in a different project.
+				ASTNode working = node;
+				Name fullName = null;
+				while( working instanceof Name fn) {
+					fullName = fn;
+					working = working.getParent();
+				}
+				if( fullName != null ) {
+					String typeName = fullName.toString();
+					IJavaElement je = binding instanceof JavacPackageBinding jpb ? jpb.findJavaElementForClass(typeName) : ipb.getJavaElement();
+					if( je != null && !this.locator.pattern.focus.equals(je)) {
+						return toResponse(IMPOSSIBLE_MATCH);
+					}
+					// If we can't find a java element, let's give some leeway
+					return toResponse(ACCURATE_MATCH);
+				}
 			}
 		}
 		if (binding == null) {
