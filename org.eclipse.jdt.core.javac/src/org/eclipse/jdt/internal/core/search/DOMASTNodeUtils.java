@@ -21,6 +21,7 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.AnnotationTypeMemberDeclaration;
+import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Comment;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -74,6 +75,9 @@ public class DOMASTNodeUtils {
 			|| node instanceof LambdaExpression
 			|| node.getLocationInParent() == FieldDeclaration.FRAGMENTS_PROPERTY) {
 			return getDeclaringJavaElement(node);
+		}
+		if (node instanceof ClassInstanceCreation newInst && newInst.getAnonymousClassDeclaration() != null) {
+			return getDeclaringJavaElement(newInst.getAnonymousClassDeclaration());
 		}
 		return getEnclosingJavaElement(node.getParent());
 	}
@@ -255,6 +259,9 @@ public class DOMASTNodeUtils {
 		}
 		if (astNode instanceof LambdaExpression lambda) {
 			return lambda.resolveMethodBinding();
+		}
+		if (astNode instanceof AnonymousClassDeclaration anon) {
+			return anon.resolveBinding();
 		}
 		// TODO more...
 		return null;
