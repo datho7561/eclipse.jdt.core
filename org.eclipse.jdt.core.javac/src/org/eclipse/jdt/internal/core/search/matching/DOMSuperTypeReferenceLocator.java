@@ -10,6 +10,9 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.core.search.matching;
 
+import static org.eclipse.jdt.internal.core.search.matching.SuperTypeReferencePattern.ONLY_SUPER_INTERFACES;
+import static org.eclipse.jdt.internal.core.search.matching.SuperTypeReferencePattern.ONLY_SUPER_CLASSES;
+
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
@@ -25,6 +28,7 @@ import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.internal.core.search.LocatorResponse;
+import org.eclipse.jdt.internal.core.search.indexing.IIndexConstants;
 
 public class DOMSuperTypeReferenceLocator extends DOMPatternLocator {
 
@@ -37,7 +41,7 @@ public class DOMSuperTypeReferenceLocator extends DOMPatternLocator {
 
 	@Override
 	public LocatorResponse match(org.eclipse.jdt.core.dom.LambdaExpression node, NodeSetWrapper nodeSet, MatchLocator locator) {
-		if (this.locator.pattern.superRefKind != SuperTypeReferencePattern.ONLY_SUPER_INTERFACES)
+		if (this.locator.pattern.superRefKind != ONLY_SUPER_INTERFACES)
 			return toResponse(IMPOSSIBLE_MATCH);
 		nodeSet.setMustResolve(true);
 		int level = nodeSet.addMatch(node, POSSIBLE_MATCH);
@@ -47,6 +51,9 @@ public class DOMSuperTypeReferenceLocator extends DOMPatternLocator {
 	@Override
 	public LocatorResponse match(Type node, NodeSetWrapper nodeSet, MatchLocator locator) {
 		if (!Set.of(TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, TypeDeclaration.SUPER_INTERFACE_TYPES_PROPERTY, ClassInstanceCreation.TYPE_PROPERTY).contains(node.getLocationInParent())) {
+			return toResponse(IMPOSSIBLE_MATCH);
+		}
+		if (this.locator.pattern.typeSuffix == IIndexConstants.INTERFACE_SUFFIX && node.getLocationInParent() == ClassInstanceCreation.TYPE_PROPERTY) {
 			return toResponse(IMPOSSIBLE_MATCH);
 		}
 		if (node.getLocationInParent() == ClassInstanceCreation.TYPE_PROPERTY && node.getParent() instanceof ClassInstanceCreation newInst && newInst.getAnonymousClassDeclaration() == null) {
@@ -90,14 +97,16 @@ public class DOMSuperTypeReferenceLocator extends DOMPatternLocator {
 			return toResponse(IMPOSSIBLE_MATCH);
 
 		int level = IMPOSSIBLE_MATCH;
-		if (this.locator.pattern.superRefKind != SuperTypeReferencePattern.ONLY_SUPER_INTERFACES || node.getLocationInParent() == TypeDeclaration.SUPER_INTERFACE_TYPES_PROPERTY) {
+		int kind = this.locator.pattern.superRefKind;
+
+		if (kind != ONLY_SUPER_INTERFACES || node.getLocationInParent() == TypeDeclaration.SUPER_INTERFACE_TYPES_PROPERTY) {
 			level = this.resolveLevelForType(this.locator.pattern.superSimpleName, this.locator.pattern.superQualification,
 					type);
 			if (level > IMPOSSIBLE_MATCH)
 				return toResponse(level);
 		}
 
-		if (this.locator.pattern.superRefKind != SuperTypeReferencePattern.ONLY_SUPER_CLASSES || node.getLocationInParent() == TypeDeclaration.SUPERCLASS_TYPE_PROPERTY) {
+		if (kind != ONLY_SUPER_CLASSES || node.getLocationInParent() == TypeDeclaration.SUPERCLASS_TYPE_PROPERTY) {
 			level = this.resolveLevelForType(this.locator.pattern.superSimpleName, this.locator.pattern.superQualification,
 					type);
 			if (level == ACCURATE_MATCH)
