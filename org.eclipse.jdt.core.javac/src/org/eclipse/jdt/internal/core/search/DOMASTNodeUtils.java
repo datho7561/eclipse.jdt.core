@@ -49,6 +49,7 @@ import org.eclipse.jdt.core.dom.SuperMethodReference;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeParameter;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
@@ -96,6 +97,11 @@ public class DOMASTNodeUtils {
 				return vb.getJavaElement();
 		}
 		if (node instanceof VariableDeclarationStatement variable && !variable.fragments().isEmpty()) {
+			IVariableBinding vb =  ((List<VariableDeclarationFragment>)variable.fragments()).iterator().next().resolveBinding();
+			if( vb != null )
+				return vb.getJavaElement();
+		}
+		if (node instanceof VariableDeclarationExpression variable && !variable.fragments().isEmpty()) {
 			IVariableBinding vb =  ((List<VariableDeclarationFragment>)variable.fragments()).iterator().next().resolveBinding();
 			if( vb != null )
 				return vb.getJavaElement();
