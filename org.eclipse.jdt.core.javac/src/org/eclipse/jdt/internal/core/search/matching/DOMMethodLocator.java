@@ -673,7 +673,7 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		IMethodBinding invocationOrDeclarationBinding = invocationBinding;
 		IMethodBinding declarationBinding = null;
 		if (invocationOrDeclarationBinding == null) {
-			return INACCURATE_MATCH;
+			return IMPOSSIBLE_MATCH;
 		}
 
 		int invocationLevel = matchMethod(messageSend, invocationBinding, skipVerif, false);
