@@ -42,6 +42,7 @@ import org.eclipse.jdt.core.dom.MethodReference;
 import org.eclipse.jdt.core.dom.ModuleDeclaration;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
+import org.eclipse.jdt.core.dom.RecordDeclaration;
 import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
@@ -74,7 +75,8 @@ public class DOMASTNodeUtils {
 			|| node instanceof AnnotationTypeMemberDeclaration
 			|| node instanceof Initializer
 			|| node instanceof LambdaExpression
-			|| node.getLocationInParent() == FieldDeclaration.FRAGMENTS_PROPERTY) {
+			|| node.getLocationInParent() == FieldDeclaration.FRAGMENTS_PROPERTY
+			|| node.getLocationInParent() == RecordDeclaration.RECORD_COMPONENTS_PROPERTY) {
 			return getDeclaringJavaElement(node);
 		}
 		if (node instanceof ClassInstanceCreation newInst && newInst.getAnonymousClassDeclaration() != null) {
