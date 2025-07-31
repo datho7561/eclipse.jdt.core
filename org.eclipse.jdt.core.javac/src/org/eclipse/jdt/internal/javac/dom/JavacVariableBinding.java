@@ -452,7 +452,9 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 
 	@Override
 	public boolean isRecordComponent() {
-		return this.variableSymbol.owner instanceof ClassSymbol ownerType
-				&& ownerType.isRecord();
+		return
+			(this.variableSymbol.owner instanceof ClassSymbol ownerType	&& ownerType.isRecord())
+			||
+			(this.variableSymbol.owner instanceof MethodSymbol method && method.params().contains(this.variableSymbol) && method.isConstructor() && (method.flags() & Flags.RECORD) != 0);
 	}
 }
