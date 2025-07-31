@@ -2792,6 +2792,9 @@ class JavacConverter {
 	}
 
 	private void removeTrailingCharFromRange(ASTNode res, char[] possible) {
+		if (res.getLength() == 0) {
+			return;
+		}
 		int endPos = res.getStartPosition() + res.getLength();
 		char lastChar = this.rawText.charAt(endPos-1);
 		boolean found = false;
