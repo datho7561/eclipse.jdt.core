@@ -49,10 +49,10 @@ public class DOMPatternLocator extends PatternLocator {
 		super(pattern);
 	}
 
-	protected LocatorResponse toResponse(int val) {
+	protected static LocatorResponse toResponse(int val) {
 		return toResponse(val, false);
 	}
-	protected LocatorResponse toResponse(int val, boolean alreadyAdded) {
+	protected static LocatorResponse toResponse(int val, boolean alreadyAdded) {
 		return new LocatorResponse(val, false, null, alreadyAdded, true);
 	}
 

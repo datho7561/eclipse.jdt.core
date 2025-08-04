@@ -10,8 +10,11 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.core.search.matching;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
@@ -27,6 +30,7 @@ import org.eclipse.jdt.internal.core.search.LocatorResponse;
 public class DOMOrLocator extends DOMPatternLocator {
 
 	private final DOMPatternLocator[] children;
+	private List<DOMPatternLocator> currentlyMatching = List.of();
 
 	public DOMOrLocator(OrLocator orLocator, OrPattern pattern) {
 		super(pattern);
@@ -92,17 +96,33 @@ public class DOMOrLocator extends DOMPatternLocator {
 		return or(child -> child.match(node, nodeSet, locator));
 	}
 	public LocatorResponse resolveLevel(org.eclipse.jdt.core.dom.ASTNode node, MatchLocator locator) {
-		return or(child -> child.resolveLevel(node, locator));
+		return or(child -> child.resolveLevel(node, locator), this.currentlyMatching);
 	}
 	public LocatorResponse resolveLevel(org.eclipse.jdt.core.dom.ASTNode node, IBinding binding, MatchLocator locator) {
-		return or(child -> child.resolveLevel(node, binding, locator));
+		return or(child -> child.resolveLevel(node, binding, locator), this.currentlyMatching);
 	}
 
-	private LocatorResponse or(java.util.function.Function<DOMPatternLocator, LocatorResponse> query) {
-		return Arrays.stream(this.children)
+	private static LocatorResponse or(java.util.function.Function<DOMPatternLocator, LocatorResponse> query, Collection<DOMPatternLocator> locators) {
+		return locators.stream()
 					.map(query::apply)
 					.max(Comparator.comparingInt(LocatorResponse::level))
 					.orElse(toResponse(PatternLocator.IMPOSSIBLE_MATCH));
+	}
+
+	private LocatorResponse or(java.util.function.Function<DOMPatternLocator, LocatorResponse> query) {
+		List<DOMPatternLocator> matching = new ArrayList<>();
+		LocatorResponse best = toResponse(PatternLocator.IMPOSSIBLE_MATCH);
+		for (DOMPatternLocator child : this.children) {
+			var current = query.apply(child);
+			if (current.level() != PatternLocator.IMPOSSIBLE_MATCH) {
+				matching.add(child);
+			}
+			if (current.level() > best.level()) {
+				best = current;
+			}
+		}
+		this.currentlyMatching = matching;
+		return best;
 	}
 
 	@Override
