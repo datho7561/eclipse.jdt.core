@@ -177,7 +177,7 @@ public class DOMPatternLocator extends PatternLocator {
 			return ACCURATE_MATCH;
 		}
 
-		boolean isTypeVar = binding.isTypeVariable();
+		boolean isTypeVar = binding != null && binding.isTypeVariable();
 		if( !isTypeVar ) {
 			if (qualificationPattern == null && simpleNamePattern != null) {
 				level = resolveLevelForTypeSourceName(simpleNamePattern, (binding.isArray() ? binding : binding.getErasure()).getName().toCharArray(), binding);
