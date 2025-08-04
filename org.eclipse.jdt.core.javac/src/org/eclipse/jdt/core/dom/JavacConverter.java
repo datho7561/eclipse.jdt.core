@@ -528,6 +528,9 @@ class JavacConverter {
 	}
 
 	Name toName(JCTree expression, BiConsumer<ASTNode, JCTree> extraSettings ) {
+		if (expression == null) {
+			return null;
+		}
 		if (expression instanceof JCIdent ident) {
 			Name res = convertName(ident.getName());
 			commonSettings(res, expression);
