@@ -74,7 +74,7 @@ import org.eclipse.jdt.internal.core.search.matching.PatternLocator;
 /**
  * Visits an AST to feel the possible match with nodes
  */
-class PatternLocatorVisitor extends ASTVisitor {
+public class PatternLocatorVisitor extends ASTVisitor {
 
 	private final DOMPatternLocator domPatternLocator;
 	private final NodeSetWrapper nodeSet;
