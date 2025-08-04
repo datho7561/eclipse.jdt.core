@@ -14,7 +14,7 @@
  *								Bug 377883 - NPE on open Call Hierarchy
  *     Microsoft Corporation - Contribution for bug 575562 - improve completion search performance
  *******************************************************************************/
-package org.eclipse.jdt.internal.core.search;
+package org.eclipse.jdt.internal.core.search.matching;
 
 import static org.eclipse.jdt.internal.core.JavaModelManager.trace;
 import static org.eclipse.jdt.internal.core.search.DOMASTNodeUtils.insideDocComment;
@@ -110,17 +110,9 @@ import org.eclipse.jdt.internal.core.ModularClassFile;
 import org.eclipse.jdt.internal.core.NamedMember;
 import org.eclipse.jdt.internal.core.PackageFragment;
 import org.eclipse.jdt.internal.core.PackageFragmentRoot;
-import org.eclipse.jdt.internal.core.search.matching.ClassFileMatchLocator;
-import org.eclipse.jdt.internal.core.search.matching.DOMLocalVariableLocator;
-import org.eclipse.jdt.internal.core.search.matching.DOMMatchLocator;
-import org.eclipse.jdt.internal.core.search.matching.DOMPatternLocator;
-import org.eclipse.jdt.internal.core.search.matching.MatchLocator;
-import org.eclipse.jdt.internal.core.search.matching.MatchingNodeSet;
-import org.eclipse.jdt.internal.core.search.matching.MethodPattern;
-import org.eclipse.jdt.internal.core.search.matching.ModularClassFileMatchLocator;
-import org.eclipse.jdt.internal.core.search.matching.NodeSetWrapper;
-import org.eclipse.jdt.internal.core.search.matching.PatternLocator;
-import org.eclipse.jdt.internal.core.search.matching.PossibleMatch;
+import org.eclipse.jdt.internal.core.search.DOMASTNodeUtils;
+import org.eclipse.jdt.internal.core.search.DOMPatternLocatorFactory;
+import org.eclipse.jdt.internal.core.search.PatternLocatorVisitor;
 import org.eclipse.jdt.internal.core.search.processing.JobManager;
 import org.eclipse.jdt.internal.core.util.Util;
 
@@ -566,6 +558,9 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 	}
 
 	private void locateMatchesForBinary(PossibleMatch possibleMatch, MatchLocator locator) {
+		if (possibleMatch == null) {
+			return;
+		}
 		if (possibleMatch.openable instanceof ClassFile classFile) {
 			IBinaryType info = null;
 			try {
@@ -587,6 +582,7 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 				ILog.get().error(e.getMessage(), e);
 			}
 		}
+		locateMatchesForBinary(possibleMatch.getSimilarMatch(), locator);
 	}
 
 	protected IBinaryType getBinaryInfo(ClassFile classFile, IResource resource) throws CoreException {
