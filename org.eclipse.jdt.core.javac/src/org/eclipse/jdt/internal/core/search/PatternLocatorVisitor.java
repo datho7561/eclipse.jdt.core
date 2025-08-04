@@ -305,7 +305,8 @@ class PatternLocatorVisitor extends ASTVisitor {
 			loc == EnumDeclaration.NAME_PROPERTY ||
 			loc == EnumConstantDeclaration.NAME_PROPERTY ||
 			loc == AnnotationTypeDeclaration.NAME_PROPERTY ||
-			loc == MethodDeclaration.NAME_PROPERTY) {
+			loc == MethodDeclaration.NAME_PROPERTY ||
+			loc == RecordDeclaration.NAME_PROPERTY) {
 			return false; // skip as parent was most likely already matched
 		}
 		LocatorResponse resp = defaultVisitImplementationWithFunc(node, (x,y) -> y.match(node, this.nodeSet, this.locator), DOMASTNodeUtils::getBinding);
