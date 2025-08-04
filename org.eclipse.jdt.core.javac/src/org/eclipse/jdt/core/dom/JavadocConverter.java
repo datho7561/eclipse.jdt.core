@@ -735,18 +735,23 @@ class JavadocConverter {
 		commonSettings(res, reference);
 		int currentOffset = this.docComment.getSourcePosition(reference.getStartPosition());
 
-		// TODO missing module reference
+		Name moduleName = null;
+		if (reference.moduleName != null) {
+			moduleName = toName(reference.moduleName, currentOffset);
+			currentOffset = moduleName.getStartPosition() + moduleName.getLength() + 1;
+		}
+		Name qualifierExpressionName = null;
 		if (reference.qualifierExpression != null) {
-			Name qualifierExpressionName = null;
 			if (reference.qualifierExpression instanceof JCArrayTypeTree arrayType) {
-				qualifierExpressionName = toName(arrayType.elemtype, res.getStartPosition());
+				qualifierExpressionName = toName(arrayType.elemtype, currentOffset);
 			} else {
-				qualifierExpressionName = toName(reference.qualifierExpression, res.getStartPosition());
+				qualifierExpressionName = toName(reference.qualifierExpression, currentOffset);
 			}
 			qualifierExpressionName.setSourceRange(currentOffset, Math.max(0, reference.qualifierExpression.toString().length()));
-			res.setQualifier(qualifierExpressionName);
 			currentOffset += qualifierExpressionName.getLength();
 		}
+		res.setQualifier(join(moduleName, qualifierExpressionName));
+
 		currentOffset++; // #
 		SimpleName name = this.ast.newSimpleName(reference.memberName.toString());
 		name.setSourceRange(currentOffset, Math.max(0, reference.memberName.toString().length()));
@@ -805,31 +810,36 @@ class JavadocConverter {
 	private Name convertReferenceToNameOnly(DCReference reference) {
 		int startPos = this.docComment.getSourcePosition(reference.getStartPosition());
 		if (reference.qualifierExpression != null) {
-			int moduleQualifierLen = 0;
+			Name moduleName = null;
 			if( reference.moduleName != null) {
-				moduleQualifierLen = this.javacConverter.commonSettingsGetLength(null, reference.moduleName) + 1;
+				moduleName = toName(reference.moduleName, startPos);
+				startPos = moduleName.getStartPosition() + moduleName.getLength() + 1;
 			}
 			Name qualifierExpressionName = null;
 			if (reference.qualifierExpression instanceof JCArrayTypeTree arrayType) {
-				qualifierExpressionName = toName(arrayType.elemtype, startPos + moduleQualifierLen);
+				qualifierExpressionName = toName(arrayType.elemtype, startPos);
 			} else {
-				qualifierExpressionName = toName(reference.qualifierExpression, startPos + moduleQualifierLen);
+				qualifierExpressionName = toName(reference.qualifierExpression, startPos);
 			}
-			int len = Math.max(0, reference.qualifierExpression.toString().length());
-			qualifierExpressionName.setSourceRange(startPos + moduleQualifierLen, len);
-			if( reference.moduleName == null ) {
-				return qualifierExpressionName;
-			} else {
-				ModuleQualifiedName mqn = new ModuleQualifiedName(this.ast);
-				Name moduleName = toName(reference.moduleName, startPos);
-				moduleName.setSourceRange(startPos, moduleQualifierLen);
-				mqn.setModuleQualifier(moduleName);
-				mqn.setName(qualifierExpressionName);
-				mqn.setSourceRange(startPos, qualifierExpressionName.getStartPosition() + qualifierExpressionName.getLength() - startPos);
-				return mqn;
-			}
+			return join(moduleName, qualifierExpressionName);
 		}
 		return null;
+	}
+
+	private Name join(Name moduleName, Name qualifierExpressionName) {
+		if (moduleName == null) {
+			return qualifierExpressionName;
+		}
+		int startPos = moduleName.getStartPosition();
+		int endPos = moduleName.getStartPosition() + moduleName.getLength();
+		ModuleQualifiedName mqn = new ModuleQualifiedName(this.ast);
+		mqn.setModuleQualifier(moduleName);
+		if (qualifierExpressionName != null) {
+			mqn.setName(qualifierExpressionName);
+			endPos = qualifierExpressionName.getStartPosition() + qualifierExpressionName.getLength();
+		}
+		mqn.setSourceRange(startPos, endPos - startPos);
+		return mqn;
 	}
 
 	// Return a stream, or null if empty
