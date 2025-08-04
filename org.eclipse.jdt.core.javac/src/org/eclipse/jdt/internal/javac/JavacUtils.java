@@ -346,9 +346,12 @@ public class JavacUtils {
 					moduleProjects = new LinkedHashSet<>(moduleProjects);
 					moduleProjects.add(javaProject);
 					for (IJavaProject requiredModuleProject : moduleProjects) {
-						fileManager.setLocationForModule(StandardLocation.MODULE_SOURCE_PATH,
-								requiredModuleProject.getModuleDescription().getElementName(),
-								List.of(requiredModuleProject.getModuleDescription().getResource().getLocation().removeLastSegments(1).toPath()));
+						IPath moduleFileLocation = requiredModuleProject.getModuleDescription().getResource().getLocation();
+						if (moduleFileLocation.toFile().isFile()) {
+							fileManager.setLocationForModule(StandardLocation.MODULE_SOURCE_PATH,
+									requiredModuleProject.getModuleDescription().getElementName(),
+									List.of(moduleFileLocation.removeLastSegments(1).toPath()));
+						}
 					}
 				}
 			}
