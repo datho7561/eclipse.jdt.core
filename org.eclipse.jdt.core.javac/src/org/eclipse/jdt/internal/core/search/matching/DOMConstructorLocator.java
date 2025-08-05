@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
@@ -28,8 +29,12 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodReference;
 import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.search.MethodDeclarationMatch;
+import org.eclipse.jdt.core.search.MethodReferenceMatch;
 import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchPattern;
+import org.eclipse.jdt.core.search.TypeDeclarationMatch;
 import org.eclipse.jdt.internal.codeassist.DOMCompletionUtils;
 import org.eclipse.jdt.internal.compiler.ast.Argument;
 import org.eclipse.jdt.internal.compiler.ast.ConstructorDeclaration;
@@ -148,6 +153,20 @@ public class DOMConstructorLocator extends DOMPatternLocator {
 	}
 
 	@Override
+	public LocatorResponse match(AbstractTypeDeclaration node, NodeSetWrapper nodeSet, MatchLocator locator) {
+		// match implicit super constructor reference
+		if (this.locator.pattern.findReferences &&
+			(this.locator.pattern.parameterSimpleNames == null || this.locator.pattern.parameterSimpleNames.length == 0) &&node instanceof org.eclipse.jdt.core.dom.TypeDeclaration typeDecl
+			&& !typeDecl.isInterface()
+			&& typeDecl.getSuperclassType() != null
+			&& Arrays.stream(typeDecl.getMethods()).noneMatch(MethodDeclaration::isConstructor)
+			&& matchesTypeReference(this.locator.pattern.declaringSimpleName, typeDecl.getSuperclassType())) {
+			return toResponse(POSSIBLE_MATCH);
+		}
+		return toResponse(IMPOSSIBLE_MATCH);
+	}
+
+	@Override
 	public LocatorResponse resolveLevel(org.eclipse.jdt.core.dom.ASTNode node, IBinding binding, MatchLocator locator) {
 		if (node instanceof MethodDeclaration decl) {
 			if (this.locator.pattern.findReferences) {
@@ -185,6 +204,10 @@ public class DOMConstructorLocator extends DOMPatternLocator {
 				}
 			}
 			return toResponse(level);
+		}
+		if (binding instanceof ITypeBinding type) {
+			// matched a direct subtype without explicit constructor
+			return toResponse(resolveLevelForType(this.locator.pattern.declaringSimpleName, this.locator.pattern.declaringQualification, type.getSuperclass()));
 		}
 		return toResponse(IMPOSSIBLE_MATCH);
 	}
@@ -279,6 +302,40 @@ public class DOMConstructorLocator extends DOMPatternLocator {
 
 	@Override
 	public void reportSearchMatch(MatchLocator locator, ASTNode node, SearchMatch match) throws CoreException {
+		if (node instanceof TypeDeclaration && match instanceof TypeDeclarationMatch declMatch) {
+			// type without constructor, relying on implicit super()
+			MethodReferenceMatch refMatch = new MethodReferenceMatch(
+				declMatch.getElement() instanceof IJavaElement e ? e : null,
+				declMatch.getAccuracy(),
+				declMatch.getOffset(),
+				declMatch.getLength(),
+				true,
+				true,
+				true,
+				false,
+				declMatch.getParticipant(),
+				declMatch.getResource()
+			);
+			super.reportSearchMatch(locator, node, refMatch);
+			return;
+		}
+		if (node instanceof MethodDeclaration && match instanceof MethodDeclarationMatch declMatch) {
+			// constructor without call to explicit super(), so implicit super()
+			MethodReferenceMatch refMatch = new MethodReferenceMatch(
+				declMatch.getElement() instanceof IJavaElement e ? e : null,
+				declMatch.getAccuracy(),
+				declMatch.getOffset(),
+				declMatch.getLength(),
+				true,
+				true,
+				true,
+				false,
+				declMatch.getParticipant(),
+				declMatch.getResource()
+			);
+			super.reportSearchMatch(locator, node, refMatch);
+			return;
+		}
 		if (! (node instanceof MethodDeclaration || node instanceof EnumConstantDeclaration)) {
 			IMethodBinding constructorBinding = DOMASTNodeUtils.getBinding(node) instanceof IMethodBinding binding
 				&& binding.isConstructor() ? binding : null;
