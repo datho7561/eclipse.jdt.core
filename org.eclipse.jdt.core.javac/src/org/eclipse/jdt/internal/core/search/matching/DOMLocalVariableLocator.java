@@ -153,7 +153,7 @@ public class DOMLocalVariableLocator extends DOMPatternLocator {
 			matchToReport = locator.newDeclarationMatch(element, null, match.getAccuracy(), offset, length);
 		}
 		if( matchToReport != null) {
-			SearchMatchingUtility.reportSearchMatch(locator, matchToReport);
+			super.reportSearchMatch(locator, node, matchToReport);
 		}
 	}
 

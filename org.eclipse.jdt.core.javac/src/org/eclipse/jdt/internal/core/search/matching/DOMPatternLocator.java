@@ -611,7 +611,9 @@ public class DOMPatternLocator extends PatternLocator {
 	 */
 	public void reportSearchMatch(MatchLocator locator, ASTNode node, SearchMatch match) throws CoreException {
 		this.match = match;
-		SearchMatchingUtility.reportSearchMatch(locator, match);
+		if ((match.getRule() & locator.pattern.getMatchRule()) != 0) {
+			locator.report(match);
+		}
 	}
 
 	public final void setCurrentMatch(SearchMatch match) {

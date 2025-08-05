@@ -874,7 +874,7 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 						rangeToUse.getOffset(), rangeToUse.getLength(),
 						locator.getParticipant(), r);
 				try {
-					SearchMatchingUtility.reportSearchMatch(locator, tdm);
+					super.reportSearchMatch(locator, node, tdm);
 					this.foundElements.add(je);
 				} catch(CoreException ce) {
 					// ignore
@@ -1000,7 +1000,7 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 			&& wc.getTypes().length == 1) {
 			match.setElement(wc.getTypes()[0]);
 		}
-		SearchMatchingUtility.reportSearchMatch(locator, match);
+		super.reportSearchMatch(locator, node, match);
 	}
 
 
