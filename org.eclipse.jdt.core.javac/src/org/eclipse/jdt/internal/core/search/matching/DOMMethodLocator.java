@@ -1167,7 +1167,7 @@ public class DOMMethodLocator extends DOMPatternLocator {
 				}
 			}
 		}
-		SearchMatchingUtility.reportSearchMatch(locator, match);
+		super.reportSearchMatch(locator, node, match);
 	}
 
 	private boolean preferParamaterizedNode() {
