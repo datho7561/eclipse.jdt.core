@@ -1707,6 +1707,16 @@ public class JavacBindingResolver extends BindingResolver {
 					}
 				}
 			}
+			if (Modifier.isModule(importDeclaration.getModifiers())) {
+				var maybeModuleBinding = Modules.instance(this.context).allModules().stream()
+					.filter(moduleSym -> Objects.equals(moduleSym.name.toString(), importDeclaration.getName().getFullyQualifiedName()))
+					.map(this.bindings::getModuleBinding)
+					.filter(Objects::nonNull)
+					.findFirst();
+				if (maybeModuleBinding.isPresent()) {
+					return maybeModuleBinding.orElse(null);
+				}
+			}
 		}
 		return null;
 	}
