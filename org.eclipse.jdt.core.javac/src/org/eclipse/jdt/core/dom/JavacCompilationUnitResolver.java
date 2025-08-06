@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
@@ -36,6 +37,7 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
+import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.IProduct;
@@ -43,12 +45,13 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
-import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.compiler.InvalidInputException;
 import org.eclipse.jdt.internal.compiler.DefaultErrorHandlingPolicies;
@@ -58,10 +61,8 @@ import org.eclipse.jdt.internal.compiler.env.AccessRestriction;
 import org.eclipse.jdt.internal.compiler.env.IBinaryType;
 import org.eclipse.jdt.internal.compiler.env.INameEnvironment;
 import org.eclipse.jdt.internal.compiler.env.ISourceType;
-import org.eclipse.jdt.internal.compiler.env.NameEnvironmentAnswer;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.compiler.impl.ITypeRequestor;
-import org.eclipse.jdt.internal.compiler.lookup.BinaryTypeBinding;
 import org.eclipse.jdt.internal.compiler.lookup.LookupEnvironment;
 import org.eclipse.jdt.internal.compiler.lookup.PackageBinding;
 import org.eclipse.jdt.internal.compiler.problem.DefaultProblemFactory;
@@ -217,10 +218,35 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				res.values(), null, new HashMap<>(), monitor);
 	}
 
+	private ICompilationUnit createMockUnit(IJavaProject project, IProgressMonitor monitor) {
+		try {
+			for (IPackageFragmentRoot root : project.getPackageFragmentRoots()) {
+				if (root.getResource() instanceof IFolder) {
+					IPackageFragment pack = root.getPackageFragment(this.getClass().getName() + ".MOCK_WORKING_COPY_PACKAGE_" + System.nanoTime());
+					ICompilationUnit mockUnit = pack.getCompilationUnit("A.java");
+					mockUnit.becomeWorkingCopy(monitor);
+					mockUnit.getBuffer().setContents("package " + pack.getElementName() + ";\n" +
+							"class A{}");
+					return mockUnit;
+				}
+			}
+		} catch (JavaModelException ex) {
+			ILog.get().error(ex.getMessage(), ex);
+		}
+		return null;
+	}
+
 	@Override
 	public void resolve(ICompilationUnit[] compilationUnits, String[] bindingKeys, ASTRequestor requestor, int apiLevel,
 			Map<String, String> compilerOptions, IJavaProject project, WorkingCopyOwner workingCopyOwner, int flags,
 			IProgressMonitor monitor) {
+		ICompilationUnit mockUnit = compilationUnits.length == 0 && bindingKeys.length > 0 ? createMockUnit(project, monitor) : null;
+		if (mockUnit != null) {
+			// if we're looking for a key in a binary type and have no actual unit,
+			// create a mock to activate some compilation task, enable a bindingResolver
+			// and then allow looking up the binary types too
+			compilationUnits = new ICompilationUnit[] { mockUnit };
+		}
 		Map<ICompilationUnit, CompilationUnit> units = parse(compilationUnits, apiLevel, compilerOptions, true, flags, workingCopyOwner, monitor);
 		if (requestor != null) {
 			final JavacBindingResolver[] bindingResolver = new JavacBindingResolver[1];
@@ -268,7 +294,9 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					bindingResolver[0] = javacBindingResolver;
 				}
 				resolveBindings(b, bindingMap, apiLevel);
-				requestor.acceptAST(a,b);
+				if (!Objects.equals(a, mockUnit)) {
+					requestor.acceptAST(a,b);
+				}
 			});
 
 			resolveRequestedBindingKeys(bindingResolver[0], bindingKeys,
@@ -349,7 +377,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				// from parsed files
 				requestor.acceptBinding(bindingKey, bindingFromMap);
 			} else {
-
 				if (arrayCount > 0) {
 					String elementKey = Signature.getElementType(bindingKey);
 					IBinding elementBinding = bindingMap.get(elementKey);
@@ -361,25 +388,18 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 				CustomBindingKeyParser bkp = new CustomBindingKeyParser(bindingKey);
 				bkp.parse(true);
-				char[][] name = bkp.compoundName;
-
-//				// from ECJ
-//				char[] charArrayFQN = Signature.toCharArray(bindingKey.toCharArray());
-//				char[][] twoDimensionalCharArrayFQN = Stream.of(new String(charArrayFQN).split("/")) //
-//						.map(myString -> myString.toCharArray()) //
-//						.toArray(char[][]::new);
-//				char[][] twoDimensionalCharArrayFQN = new char[][] {};
-				NameEnvironmentAnswer answer = environment.findType(name);
-				if( answer != null ) {
-					IBinaryType binaryType = answer.getBinaryType();
-					if (binaryType != null) {
-						BinaryTypeBinding binding = lu.cacheBinaryType(binaryType, null);
-						if( binding != null )
-							requestor.acceptBinding(bindingKey, new TypeBinding(bindingResolver, binding));
+				ITypeBinding type = bindingResolver.resolveWellKnownType(bkp.compoundName);
+				if (type != null) {
+					if (Objects.equals(bindingKey, type.getKey())) {
+						requestor.acceptBinding(bindingKey, type);
+					} else {
+						Stream.of(type.getDeclaredMethods(), type.getDeclaredFields())
+							.flatMap(Arrays::stream)
+							.filter(binding -> Objects.equals(binding.getKey(), bindingKey))
+							.forEach(binding -> requestor.acceptBinding(bindingKey, binding));
 					}
 				}
 			}
-
 		}
 
 	}
@@ -387,7 +407,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 	private static class CustomBindingKeyParser extends BindingKeyParser {
 
 		private char[] secondarySimpleName;
-		private char[][] compoundName;
+		private String compoundName;
 
 		public CustomBindingKeyParser(String key) {
 			super(key);
@@ -400,7 +420,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 		@Override
 		public void consumeFullyQualifiedName(char[] fullyQualifiedName) {
-			this.compoundName = CharOperation.splitOn('/', fullyQualifiedName);
+			this.compoundName = new String(fullyQualifiedName).replace('/', '.');
 		}
 	}
 
@@ -1147,16 +1167,17 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			// check name environment
 			CustomBindingKeyParser bkp = new CustomBindingKeyParser(key);
 			bkp.parse(true);
-			char[][] name = bkp.compoundName;
-			NameEnvironmentAnswer answer = environment.findType(name);
-			if (answer != null) {
-				IBinaryType binaryType = answer.getBinaryType();
-				if (binaryType != null) {
-					BinaryTypeBinding binding = lu.cacheBinaryType(binaryType, null);
-					return new TypeBinding(bindingResolverPointer[0], binding);
+			ITypeBinding type = bindingResolverPointer[0].resolveWellKnownType(bkp.compoundName);
+			if (type != null) {
+				if (Objects.equals(key, type.getKey())) {
+					return type;
 				}
+				return Stream.of(type.getDeclaredMethods(), type.getDeclaredFields())
+						.flatMap(Arrays::stream)
+						.filter(binding -> Objects.equals(binding.getKey(), key))
+						.findAny()
+						.orElse(null);
 			}
-
 			return null;
 		};
 	}
