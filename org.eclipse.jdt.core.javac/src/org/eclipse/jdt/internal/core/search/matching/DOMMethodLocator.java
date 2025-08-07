@@ -387,15 +387,17 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		return DOMTypeReferenceLocator.TYPE_PARAMS_MATCH;
 	}
 
-	private ITypeBinding findPossiblyUnresolvedBindingForType(ASTNode node, String patternSig) {
+	private ITypeBinding findPossiblyUnresolvedBindingForType(ASTNode node, String patternSig, boolean search) {
 		ITypeBinding patternBinding = JdtCoreDomPackagePrivateUtility.findBindingForType(node, patternSig) instanceof ITypeBinding ptb
 				? ptb : null;
 		if( patternBinding == null ) {
 			boolean plusOrMinus = patternSig.startsWith("+") || patternSig.startsWith("-");
 			String safePatternString = plusOrMinus ? patternSig.substring(1) : patternSig;
 			if( safePatternString.startsWith("Q")) {
-				patternBinding = JdtCoreDomPackagePrivateUtility.findBindingForType(node, patternSig) instanceof ITypeBinding ptb
-					? ptb : null;
+				patternBinding = JdtCoreDomPackagePrivateUtility.findBindingForType(node, patternSig) instanceof ITypeBinding ptb ? ptb : null;
+				if( patternBinding == null && search) {
+					patternBinding = JdtCoreDomPackagePrivateUtility.findUnresolvedBindingForType(node, patternSig) instanceof ITypeBinding ptb ? ptb : null;
+				}
 			}
 		}
 		return patternBinding;
@@ -485,7 +487,8 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			for( int i = 0; i < argBindings.length; i++ ) {
 				// Compare each
 				String goaliString = new String(goal[i]);
-				ITypeBinding patternBinding = findPossiblyUnresolvedBindingForType(node, goaliString);
+				boolean shouldSearch = !bindingIsDeclaration;
+				ITypeBinding patternBinding = findPossiblyUnresolvedBindingForType(node, goaliString, shouldSearch);
 				ITypeBinding argBinding = argBindings[i];
 				if(argBinding.isTypeVariable() && patternBinding == null ) {
 					continue;
@@ -583,7 +586,8 @@ public class DOMMethodLocator extends DOMPatternLocator {
 									} else {
 										//see if they match?
 										String fromPatternString = new String(fromPattern);
-										IBinding patternBinding = findPossiblyUnresolvedBindingForType(node, fromPatternString);
+										boolean shouldSearch = !(node instanceof MethodDeclaration);
+										IBinding patternBinding = findPossiblyUnresolvedBindingForType(node, fromPatternString, shouldSearch);
 										boolean match = TypeArgumentMatchingUtility.validateSingleTypeArgMatches(isExactPattern, fromPatternString, patternBinding, fromBinding);
 										if( !match ) {
 											newLevel = INACCURATE_MATCH;
@@ -685,9 +689,11 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			return IMPOSSIBLE_MATCH;
 		}
 
-		int invocationLevel = matchMethod(messageSend, invocationBinding, skipVerif, false);
+
+		boolean isDecl = messageSend instanceof MethodDeclaration && invocationBinding.getMethodDeclaration() == invocationBinding;
+		int invocationLevel = matchMethod(messageSend, invocationBinding, skipVerif, isDecl);
 		int declarationLevel = IMPOSSIBLE_MATCH;
-		if (invocationLevel == IMPOSSIBLE_MATCH) {
+		if (invocationLevel == IMPOSSIBLE_MATCH && !isDecl) {
 			declarationBinding = invocationBinding.getMethodDeclaration();
 			declarationLevel = matchMethod(messageSend, declarationBinding, skipVerif, true);
 			if (declarationLevel == IMPOSSIBLE_MATCH)
