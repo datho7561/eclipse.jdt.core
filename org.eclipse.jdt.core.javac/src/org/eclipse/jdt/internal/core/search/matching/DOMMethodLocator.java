@@ -718,6 +718,14 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			ITypeBinding receiverType = initialReceiverType != null ? initialReceiverType : invocationOrDeclarationBinding.getDeclaringClass();
 			if (shouldResolveSubSuperLevel(messageSend, receiverType, invocationOrDeclarationBinding, invocOrDeclLevel)) {
 				declaringLevel = resolveSubSuperLevel(messageSend, receiverType, invocationOrDeclarationBinding, invocOrDeclLevel, nullParamsForSubTypeCheck);
+				boolean isDefault = isPackageVisible(invocationOrDeclarationBinding);
+				boolean nullFocus = this.pattern.focus == null;
+				char[][][] superTypeNames = isDefault && nullFocus ? this.samePkgSuperDeclaringTypeNames: this.allSuperDeclaringTypeNames;
+				if (superTypeNames != null && resolveLevelAsSuperInvocation(invocationOrDeclarationBinding.getDeclaringClass(), invocationOrDeclarationBinding.getParameterTypes(), superTypeNames, true)) {
+					// since this is an ACCURATE_MATCH so return the possibly weaker match
+					// this is an overridden method => add flavor to returned level
+					declaringLevel = invocOrDeclLevel | SUPER_INVOCATION_FLAVOR;
+				}
 			}
 		}
 
@@ -733,14 +741,6 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			return ACCURATE_MATCH;
 		}
 		if( matchLevel != ACCURATE_MATCH) {
-			boolean isDefault = Modifier.isDefault(invocationOrDeclarationBinding.getModifiers());
-			boolean nullFocus = this.pattern.focus == null;
-			char[][][] superTypeNames = isDefault && nullFocus ? this.samePkgSuperDeclaringTypeNames: this.allSuperDeclaringTypeNames;
-			if (superTypeNames != null && resolveLevelAsSuperInvocation(invocationOrDeclarationBinding.getDeclaringClass(), invocationOrDeclarationBinding.getParameterTypes(), superTypeNames, true)) {
-				// since this is an ACCURATE_MATCH so return the possibly weaker match
-				// this is an overridden method => add flavor to returned level
-				declaringLevel = invocOrDeclLevel | SUPER_INVOCATION_FLAVOR;
-			}
 			if ((declaringLevel & FLAVORS_MASK) != 0) {
 				// level got some flavors => return it
 				retval = declaringLevel;
@@ -805,11 +805,16 @@ public class DOMMethodLocator extends DOMPatternLocator {
 					method.getDeclaringClass().getPackage().getName();
 		boolean notStatic = !Modifier.isStatic(method.getModifiers());
 		boolean notPrivate = !Modifier.isPrivate(method.getModifiers());
-		boolean isDefault = Modifier.isDefault(method.getModifiers());
 		boolean nonNullFocus = this.pattern.focus != null;
 		boolean packageMatch = CharOperation.equals(this.pattern.declaringPackageName, t.toCharArray());
-		boolean r = notStatic && notPrivate	&& !(isDefault && nonNullFocus && !packageMatch);
+		boolean r = notStatic && notPrivate	&& !(isPackageVisible(method) && nonNullFocus && !packageMatch);
 		return r;
+	}
+
+	private boolean isPackageVisible(IMethodBinding method) {
+		return !Modifier.isPublic(method.getModifiers()) &&
+				!Modifier.isProtected(method.getModifiers()) &&
+				!Modifier.isPrivate(method.getModifiers());
 	}
 
 	@Override
