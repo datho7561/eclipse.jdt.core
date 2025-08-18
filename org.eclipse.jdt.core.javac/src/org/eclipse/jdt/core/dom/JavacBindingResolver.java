@@ -1913,40 +1913,47 @@ public class JavacBindingResolver extends BindingResolver {
 		}
 		return TreeInfo.symbolFor(jcTree) instanceof VarSymbol varSymbol ? varSymbol.getConstantValue() : null;
 	}
-	@Override
-	boolean resolveBoxing(Expression expression) {
-		// TODO need to handle many different things here, very rudimentary
-		if( expression.getParent() instanceof MethodInvocation mi) {
-			IMethodBinding mb = resolveMethod(mi);
-			int foundArg = -1;
-			if( mb != null ) {
-				for( int i = 0; i < mi.arguments().size() && foundArg == -1; i++ ) {
-					if( mi.arguments().get(i) == expression) {
-						foundArg = i;
-					}
-				}
-				if( foundArg != -1 ) {
-					ITypeBinding[] tbs = mb.getParameterTypes();
-					if( tbs.length > foundArg) {
-						ITypeBinding foundType = tbs[foundArg];
-						if( expression instanceof NumberLiteral nl) {
-							if( isBoxedVersion(nl, foundType)) {
-								return true;
-							}
-						} else {
-							if( expression instanceof MethodInvocation inner) {
-								JavacMethodBinding mbInner = (JavacMethodBinding)resolveMethod(inner);
-								ITypeBinding retTypeInner = mbInner == null ? null : mbInner.getReturnType();
-								if( isBoxedVersion(retTypeInner, foundType)) {
-									return true;
-								}
-							}
-						}
-					}
-				}
-			}
+
+	private Map<String, String> directBoxingMap = null;
+	private Map<String, List<String>> unboxingMapWithConversions = null;
+	private Map<String, List<String>> boxingMapWithConversions = null;
+	private void ensureBoxingMapsCreated() {
+		if( directBoxingMap == null ) {
+			Map<String, String> m = new HashMap<String,String>();
+			m.put("java.lang.Boolean", "boolean");
+			m.put("java.lang.Byte", "byte");
+			m.put("java.lang.Character", "char");
+			m.put("java.lang.Float", "float");
+			m.put("java.lang.Integer", "int");
+			m.put("java.lang.Long", "long");
+			m.put("java.lang.Short", "short");
+			m.put("java.lang.Double", "double");
+			directBoxingMap = m;
 		}
-		return false;
+		if( unboxingMapWithConversions == null ) {
+			Map<String, List<String>> m = new HashMap<String,List<String>>();
+			m.put("java.lang.Boolean", Arrays.asList(new String[]{"boolean"}));
+			m.put("java.lang.Byte", Arrays.asList(new String[]{"byte", "float", "int", "long", "short", "double"}));
+			m.put("java.lang.Character", Arrays.asList(new String[]{"char", "float", "int", "long", "double"}));
+			m.put("java.lang.Short", Arrays.asList(new String[]{"short", "float", "int", "long", "double"}));
+			m.put("java.lang.Float", Arrays.asList(new String[]{"float", "double"}));
+			m.put("java.lang.Integer", Arrays.asList(new String[]{"float", "int", "long", "double"}));
+			m.put("java.lang.Long", Arrays.asList(new String[]{"long", "float", "double"}));
+			m.put("java.lang.Double", Arrays.asList(new String[]{"byte", "char", "float", "integer", "long", "double"}));
+			unboxingMapWithConversions = m;
+		}
+		if( boxingMapWithConversions == null ) {
+			Map<String, List<String>> m = new HashMap<String,List<String>>();
+			m.put("java.lang.Boolean", Arrays.asList(new String[]{"boolean"}));
+			m.put("java.lang.Byte", Arrays.asList(new String[]{"byte", "char", "int", "short"}));
+			m.put("java.lang.Character", Arrays.asList(new String[]{"byte", "char", "int", "short"}));
+			m.put("java.lang.Float", Arrays.asList(new String[]{"float"}));
+			m.put("java.lang.Integer", Arrays.asList(new String[]{"int"}));
+			m.put("java.lang.Long", Arrays.asList(new String[]{"long"}));
+			m.put("java.lang.Short", Arrays.asList(new String[]{"byte", "char", "int", "short"}));
+			m.put("java.lang.Double", Arrays.asList(new String[]{"double"}));
+			boxingMapWithConversions = m;
+		}
 	}
 
 	private boolean isBoxedVersion(NumberLiteral unboxed, ITypeBinding boxed) {
@@ -1961,47 +1968,136 @@ public class JavacBindingResolver extends BindingResolver {
 		return false;
 	}
 
-	private Map<String, String> boxingMap = null;
 	private boolean isBoxedVersion(ITypeBinding unboxed, ITypeBinding boxed) {
-		if( boxingMap == null ) {
-			Map<String, String> m = new HashMap<String,String>();
-			m.put("java.lang.Boolean", "boolean");
-			m.put("java.lang.Byte", "byte");
-			m.put("java.lang.Character", "char");
-			m.put("java.lang.Float", "float");
-			m.put("java.lang.Integer", "int");
-			m.put("java.lang.Long", "long");
-			m.put("java.lang.Short", "short");
-			m.put("java.lang.Double", "double");
-			boxingMap = m;
-		}
+		ensureBoxingMapsCreated();
+		return isBoxedVersionDirectional(unboxed, boxed, boxingMapWithConversions);
+	}
+
+	private boolean isUnboxedVersion(ITypeBinding unboxed, ITypeBinding boxed, Map<String, List<String>> directionalMap) {
+		ensureBoxingMapsCreated();
+		return isBoxedVersionDirectional(unboxed, boxed, unboxingMapWithConversions);
+	}
+
+	private boolean isBoxedVersionDirectional(ITypeBinding unboxed, ITypeBinding boxed, Map<String, List<String>> directionalMap) {
 		if( boxed instanceof JavacTypeBinding boxedBind && unboxed instanceof JavacTypeBinding unboxedBind) {
 			String boxedString = boxedBind.typeSymbol == null ? null : boxedBind.typeSymbol.toString();
 			String unboxedString = unboxedBind.typeSymbol == null ? null : unboxedBind.typeSymbol.toString();
-			// TODO very rudimentary, fix it, add more
-			if( boxingMap.get(boxedString) != null ) {
-				if( unboxedString.equals(boxingMap.get(boxedString))) {
-					return true;
-				}
-			}
-			// Alternate case, they might be converting some types
-			if( boxingMap.keySet().contains(boxedString) && boxingMap.values().contains(unboxedString)) {
-				return true;
+			if( boxedString != null && unboxedString != null ) {
+				return isBoxedVersionDirectional(unboxedString, boxedString, directionalMap);
 			}
 		}
 		return false;
 	}
+
+	private boolean isBoxedVersionDirectional(String unboxedString, String boxedString,
+			Map<String, List<String>> directionalMap) {
+		// TODO very rudimentary, fix it, add more
+		String identicalUnboxed = directBoxingMap.get(boxedString);
+		if( identicalUnboxed != null ) {
+			if( identicalUnboxed.equals(unboxedString)) {
+				return true;
+			}
+		}
+		// Alternate case, they might be converting some types
+		List<String> allowed = directionalMap.get(boxedString);
+		if( allowed != null && allowed.contains(unboxedString)) {
+			return true;
+		}
+		return false;
+	}
+
+	@Override
+	boolean resolveBoxing(Expression expression) {
+		// TODO need to handle many different things here, very rudimentary
+		MethodInvocation invoc = null;
+		if( expression.getParent() instanceof MethodInvocation mi) {
+			invoc = mi;
+		}
+		if( invoc != null) {
+			boolean match = resolveBoxingForArguments(invoc, expression);
+			if( match )
+				return true;
+		}
+		return false;
+	}
+	boolean resolveBoxingForArguments(MethodInvocation invoc, Expression expression) {
+		IMethodBinding mb = resolveMethod(invoc);
+		int foundArg = -1;
+		if( mb != null ) {
+			for( int i = 0; i < invoc.arguments().size() && foundArg == -1; i++ ) {
+				if( invoc.arguments().get(i) == expression) {
+					foundArg = i;
+				}
+			}
+			if( foundArg != -1 ) {
+				ITypeBinding[] tbs = mb.getParameterTypes();
+				if( tbs.length > foundArg) {
+					ITypeBinding foundType = tbs[foundArg];
+					if( expression instanceof NumberLiteral nl) {
+						if( isBoxedVersion(nl, foundType)) {
+							return true;
+						}
+					} else {
+						if( expression instanceof MethodInvocation inner) {
+							JavacMethodBinding mbInner = (JavacMethodBinding)resolveMethod(inner);
+							ITypeBinding retTypeInner = mbInner == null ? null : mbInner.getReturnType();
+							if( isBoxedVersion(retTypeInner, foundType)) {
+								return true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}
+
 	@Override
 	boolean resolveUnboxing(Expression expression) {
+		MethodInvocation mi = (expression instanceof MethodInvocation mi2) ? mi2 :
+			(expression.getParent() instanceof MethodInvocation mi3) ? mi3 : null;
 		Type t = null;
-		if( expression instanceof ClassInstanceCreation cic ) {
+		boolean isNewInstance = false;
+		boolean isVariableDeclaration = false;
+		if(expression instanceof ClassInstanceCreation cic) {
 			t = cic.getType();
+			isNewInstance = true;
+		} else if( expression instanceof MethodInvocation mi2) {
+			if( expression.getParent() instanceof VariableDeclarationFragment vdf && vdf.getParent() instanceof VariableDeclarationStatement vds) {
+				t = vds.getType();
+				isVariableDeclaration = true;
+			}
 		}
-		if( t != null && expression.getParent() instanceof MethodInvocation mi) {
+		// Something feels not right here inside resolveUnboxingForArgument
+		boolean argMatch = resolveUnboxingForArgument(mi, t, expression);
+		if( argMatch ) {
+			return true;
+		}
+
+		if( isVariableDeclaration ) {
+			Type leftTypeDom = t;
+			if( leftTypeDom instanceof PrimitiveType pt) {
+				String leftTypeAsString = pt.getPrimitiveTypeCode().toString();
+				IMethodBinding mb = resolveMethod(mi);
+				ITypeBinding returnType = mb.getReturnType();
+				String rightTypeFQQN = returnType.getQualifiedName();
+				ensureBoxingMapsCreated();
+				if( isBoxedVersionDirectional(leftTypeAsString, rightTypeFQQN, unboxingMapWithConversions)) {
+					return true;
+				}
+			}
+		}
+
+		// TODO others
+		return false;
+	}
+
+	boolean resolveUnboxingForArgument(MethodInvocation mi, Type t, Expression possibleArgument) {
+		if( t != null && mi != null ) {
 			int foundArg = -1;
 			if( mi != null ) {
 				for( int i = 0; i < mi.arguments().size() && foundArg == -1; i++ ) {
-					if( mi.arguments().get(i) == expression) {
+					if( mi.arguments().get(i) == possibleArgument) {
 						foundArg = i;
 					}
 				}
