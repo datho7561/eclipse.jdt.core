@@ -1366,6 +1366,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		if (this.isParameterizedType() || this.isRawType()) {
 			return getErasure();
 		}
+		// TODO handle wildcard types here? test0114
 		return this.typeSymbol.type == this.type
 			? this
 			: this.resolver.bindings.getTypeBinding(this.typeSymbol.type, true);
