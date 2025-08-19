@@ -1100,6 +1100,9 @@ class JavacConverter {
 			// Some of the array dimensions are part of the variable name
 			res.extraDimensions().addAll(dims);
 			type = unwrapDimensions(type, dims.size());
+			if ( (javac.mods.flags & VARARGS) != 0) {
+				res.setFlags(ASTNode.MALFORMED);
+			}
 		}
 
 		// the array dimensions are part of the type
