@@ -82,6 +82,7 @@ import org.eclipse.jdt.internal.core.ResolvedSourceType;
 import org.eclipse.jdt.internal.core.SourceType;
 
 import com.sun.tools.javac.code.Attribute;
+import com.sun.tools.javac.code.BoundKind;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Kinds;
 import com.sun.tools.javac.code.Kinds.Kind;
@@ -98,6 +99,7 @@ import com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ArrayType;
+import com.sun.tools.javac.code.Type.CapturedType;
 import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.Type.ErrorType;
 import com.sun.tools.javac.code.Type.IntersectionClassType;
@@ -1339,6 +1341,11 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			}
 			return l.toArray(JavacTypeBinding[]::new);
 		} else if (this.type instanceof TypeVar typeVar) {
+			if( typeVar instanceof CapturedType ct) {
+				if( ct.wildcard != null && ct.wildcard.kind == BoundKind.UNBOUND) {
+					return new ITypeBinding[0];
+				}
+			}
 			Type bounds = typeVar.getUpperBound();
 			if (bounds instanceof IntersectionClassType intersectionType) {
 				return intersectionType.getBounds().stream() //
