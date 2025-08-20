@@ -34,6 +34,7 @@ import com.sun.source.doctree.LinkTree;
 import com.sun.source.doctree.SeeTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
@@ -107,6 +108,12 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 	}
 
 	@Override
+	public Void visitImport(ImportTree node, Void p) {
+		// Do not visit subtree; access restriction errors are not reported on imports
+		return null;
+	}
+
+	@Override
 	public Void visitMemberSelect(MemberSelectTree node, Void p) {
 		JCFieldAccess fieldAccess = (JCFieldAccess) node;
 		if (fieldAccess.selected.type == null || fieldAccess.selected.type.isErroneous()) {
@@ -115,35 +122,50 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 		}
 		Symbol sym = fieldAccess.selected.type.tsym;
 		String fqn = getQualifiedName(sym);
-
-		int startPos = fieldAccess.selected.getEndPosition(this.unit.endPositions) + 1;
-		int endPos = startPos + fieldAccess.name.length() - 1;
-
 		String fieldName = fieldAccess.name.toString();
 
-		boolean isField = false;
 		if (!(sym instanceof Symbol.TypeSymbol typeSym) || typeSym.members() == null) {
 			return super.visitMemberSelect(node, p);
 		}
-		for (Symbol elt : typeSym.getEnclosedElements()) {
-			if (fieldName.equals(elt.getSimpleName().toString())) {
-				if (elt instanceof Symbol.VarSymbol) {
-					isField = true;
+
+		if (sym instanceof Symbol.PackageSymbol packageSym) {
+			// left side is a package; perhaps this is a fully qualified type
+			int startPos = fieldAccess.getStartPosition();
+			int endPos = fieldAccess.getEndPosition(this.unit.endPositions) - 1;
+			if (endPos == -1) {
+				endPos = fieldAccess.toString().length();
+			}
+			for (Symbol elt : packageSym.getEnclosedElements()) {
+				if (fieldName.equals(elt.getSimpleName().toString())) {
+					collectProblemForFQN(fqn + "." + fieldName, startPos, endPos, TYPE_ACCESS, null);
+					break;
 				}
 			}
-		}
-
-		if (!UNINTERESTING_FIELDS.contains(fieldName)) {
-			if (fieldAccess.type instanceof Type.MethodType methodType) {
-				collectProblemForFQN(fqn, startPos, endPos, METHOD_ACCESS,
-						toDisplayString(fieldAccess.name.toString(), methodType));
-			} else if (isField) {
-				collectProblemForFQN(fqn, startPos, endPos, FIELD_ACCESS, fieldAccess.name.toString());
-			} else {
-				collectProblemForFQN(fqn + "$" + fieldName, startPos, endPos, TYPE_ACCESS, null);
+			return super.visitMemberSelect(node, p);
+		} else {
+			boolean isField = false;
+			int startPos = fieldAccess.selected.getEndPosition(this.unit.endPositions) + 1;
+			int endPos = startPos + fieldAccess.name.length() - 1;
+			for (Symbol elt : typeSym.getEnclosedElements()) {
+				if (fieldName.equals(elt.getSimpleName().toString())) {
+					if (elt instanceof Symbol.VarSymbol) {
+						isField = true;
+					}
+				}
 			}
+
+			if (!UNINTERESTING_FIELDS.contains(fieldName)) {
+				if (fieldAccess.type instanceof Type.MethodType methodType) {
+					collectProblemForFQN(fqn, startPos, endPos, METHOD_ACCESS,
+							toDisplayString(fieldAccess.name.toString(), methodType));
+				} else if (isField) {
+					collectProblemForFQN(fqn, startPos, endPos, FIELD_ACCESS, fieldAccess.name.toString());
+				} else {
+					collectProblemForFQN(fqn + "$" + fieldName, startPos, endPos, TYPE_ACCESS, null);
+				}
+			}
+			return super.visitMemberSelect(node, p);
 		}
-		return super.visitMemberSelect(node, p);
 	}
 
 	@Override

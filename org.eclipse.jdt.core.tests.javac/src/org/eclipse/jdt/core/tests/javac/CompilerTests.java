@@ -502,6 +502,67 @@ public class CompilerTests extends AbstractJavaModelTests {
 				Access restriction: The method 'Mouth.Tongue.flapAboutEveryWhichWay()' is not API (restriction on required project 'A')""", actual);
 	}
 
+	@Test
+	public void testAccessRulesProblemsFullyQualifiedName() throws Exception {
+		IJavaProject javaProjectA = createJava21Project("A");
+		IJavaProject javaProjectB = createJava21Project("B");
+		IClasspathEntry[] classpathEntries = javaProjectB.getRawClasspath();
+
+		IAccessRule accessRule = JavaCore.newAccessRule(new Path("**/org/example/util/*"), IAccessRule.K_NON_ACCESSIBLE);
+
+		IClasspathEntry projectAEntry = JavaCore.newProjectEntry(javaProjectA.getPath(), //
+				new IAccessRule[] { accessRule },
+				false,
+				new IClasspathAttribute[0],
+				false);
+
+		IClasspathEntry[] newClasspathEntries = new IClasspathEntry[classpathEntries.length + 1];
+		System.arraycopy(classpathEntries, 0, newClasspathEntries, 0, classpathEntries.length);
+		newClasspathEntries[classpathEntries.length] = projectAEntry;
+
+		javaProjectB.setRawClasspath(newClasspathEntries, new NullProgressMonitor());
+
+		createFolder("A/src/org");
+		createFolder("A/src/org/example");
+		createFolder("A/src/org/example/util");
+
+		IFile utilClass = createFile("A/src/org/example/util/Mouth.java", """
+				package org.example.util;
+
+				public class Mouth {
+					public Mouth() {}
+				}
+				""");
+
+		javaProjectA.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectA.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		IMarker[] markers = utilClass.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		assertEquals(0, markers.length);
+
+		IFile file = createFile("B/src/BreakAccessRules.java", """
+			public class BreakAccessRules {
+				public static void main(String[] args) {
+					org.example.util.Mouth mouth = new org.example.util.Mouth();
+				}
+			}
+			""");
+
+		javaProjectB.setOption(JavaCore.COMPILER_PB_FORBIDDEN_REFERENCE, JavaCore.ERROR);
+		javaProjectB.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectB.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		markers = file.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		// Two on the Mouth constructor (one of which is marked constructor)
+		// One on the LHS of the assignment for Mouth type
+		// One on open()
+		assertEquals(4, markers.length);
+		String actual = getMarkersString(markers, false);
+		assertEquals("""
+				Access restriction: The type 'Mouth' is not API (restriction on required project 'A')
+				The value of the local variable mouth is not used
+				Access restriction: The constructor 'Mouth()' is not API (restriction on required project 'A')
+				Access restriction: The type 'Mouth' is not API (restriction on required project 'A')""", actual);
+	}
+
 	// HELPERS
 
 	/**
