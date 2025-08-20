@@ -36,7 +36,6 @@ import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MemberSelectTree;
-import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TreeScanner;
@@ -48,7 +47,6 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
-import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 
 /**
@@ -77,8 +75,6 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 
 	private List<CategorizedProblem> accessRestrictionProblems = new ArrayList<>();
 	private JCCompilationUnit unit = null;
-
-	private int methodEnd = -1;
 
 	public AccessRestrictionTreeScanner(INameEnvironment nameEnvironment, IProblemFactory problemFactory,
 			CompilerOptions compilerOptions) {
@@ -115,17 +111,6 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 	public Void visitImport(ImportTree node, Void p) {
 		// Do not visit subtree; access restriction errors are not reported on imports
 		return null;
-	}
-
-	@Override
-	public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
-		int oldMethodEnd = methodEnd;
-		methodEnd = ((JCMethodInvocation)node).getEndPosition(this.unit.endPositions);
-		try {
-			return super.visitMethodInvocation(node, p);
-		} finally {
-			methodEnd = oldMethodEnd;
-		}
 	}
 
 	@Override
@@ -320,9 +305,6 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 		if (startPos == -1) {
 			// this might be a synthetic node
 			return;
-		}
-		if ((accessType == METHOD_ACCESS || accessType == CONSTRUCTOR_ACCESS) && methodEnd != -1) {
-			endPos = methodEnd;
 		}
 		char[][] fqnChar = Stream.of(fqn.split("\\.")).map(String::toCharArray).toArray(char[][]::new);
 		NameEnvironmentAnswer ans = nameEnvironment.findType(fqnChar);
