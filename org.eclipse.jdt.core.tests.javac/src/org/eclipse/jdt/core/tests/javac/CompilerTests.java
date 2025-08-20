@@ -555,12 +555,75 @@ public class CompilerTests extends AbstractJavaModelTests {
 		// One on the LHS of the assignment for Mouth type
 		// One on open()
 		assertEquals(4, markers.length);
-		String actual = getMarkersString(markers, false);
+		String actual = getMarkersString(markers, true);
 		assertEquals("""
-				Access restriction: The type 'Mouth' is not API (restriction on required project 'A')
-				The value of the local variable mouth is not used
-				Access restriction: The constructor 'Mouth()' is not API (restriction on required project 'A')
-				Access restriction: The type 'Mouth' is not API (restriction on required project 'A')""", actual);
+				[76, 98] Access restriction: The type 'Mouth' is not API (restriction on required project 'A')
+				[99, 104] The value of the local variable mouth is not used
+				[111, 133] Access restriction: The constructor 'Mouth()' is not API (restriction on required project 'A')
+				[111, 133] Access restriction: The type 'Mouth' is not API (restriction on required project 'A')""", actual);
+	}
+
+	@Test
+	public void testAccessRulesProblemsSuperclassConstructorInvocation() throws Exception {
+		IJavaProject javaProjectA = createJava21Project("A");
+		IJavaProject javaProjectB = createJava21Project("B");
+		IClasspathEntry[] classpathEntries = javaProjectB.getRawClasspath();
+
+		IAccessRule accessRule = JavaCore.newAccessRule(new Path("**/org/example/util/*"), IAccessRule.K_NON_ACCESSIBLE);
+
+		IClasspathEntry projectAEntry = JavaCore.newProjectEntry(javaProjectA.getPath(), //
+				new IAccessRule[] { accessRule },
+				false,
+				new IClasspathAttribute[0],
+				false);
+
+		IClasspathEntry[] newClasspathEntries = new IClasspathEntry[classpathEntries.length + 1];
+		System.arraycopy(classpathEntries, 0, newClasspathEntries, 0, classpathEntries.length);
+		newClasspathEntries[classpathEntries.length] = projectAEntry;
+
+		javaProjectB.setRawClasspath(newClasspathEntries, new NullProgressMonitor());
+
+		createFolder("A/src/org");
+		createFolder("A/src/org/example");
+		createFolder("A/src/org/example/util");
+
+		IFile utilClass = createFile("A/src/org/example/util/Mouth.java", """
+				package org.example.util;
+
+				public class Mouth {
+					public Mouth() {}
+				}
+				""");
+
+		javaProjectA.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectA.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		IMarker[] markers = utilClass.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		assertEquals(0, markers.length);
+
+		IFile file = createFile("B/src/BreakAccessRules.java", """
+			import org.example.util.Mouth;
+			public class BreakAccessRules extends Mouth {
+				public BreakAccessRules() {
+					super();
+				}
+
+				public static void main(String[] args) {
+				}
+			}
+			""");
+
+		javaProjectB.setOption(JavaCore.COMPILER_PB_FORBIDDEN_REFERENCE, JavaCore.ERROR);
+		javaProjectB.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectB.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		markers = file.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		// Two on the Mouth constructor (one of which is marked constructor)
+		// One on the LHS of the assignment for Mouth type
+		// One on open()
+		assertEquals(2, markers.length);
+		String actual = getMarkersString(markers, true);
+		assertEquals("""
+				[69, 74] Access restriction: The type 'Mouth' is not API (restriction on required project 'A')
+				[108, 116] Access restriction: The constructor 'Mouth()' is not API (restriction on required project 'A')""", actual);
 	}
 
 	// HELPERS
