@@ -1018,6 +1018,18 @@ public class JavacBindingResolver extends BindingResolver {
 		resolve();
 		JCTree javacElement = this.converter.domToJavac.get(method);
 		if (javacElement instanceof JCMethodDecl methodDecl && !(methodDecl.type instanceof ErrorType)) {
+			if (!this.isRecoveringBindings) {
+				if( methodDecl.type == null || methodDecl.type instanceof ErrorType)
+					return null;
+				if( methodDecl.params != null ) {
+					for( JCVariableDecl jcvd : methodDecl.params) {
+						if( jcvd.type instanceof ErrorType ) {
+							return null;
+						}
+					}
+				}
+			}
+
 			if (methodDecl.type != null ) {
 				return this.bindings.getMethodBinding(methodDecl.type.asMethodType(), methodDecl.sym, null, true, null);
 			}
