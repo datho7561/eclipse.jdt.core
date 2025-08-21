@@ -644,6 +644,10 @@ public class JavacBindingResolver extends BindingResolver {
 			return this.bindings.getTypeBinding(((JCNewArray)jcArrayCreation).type);
 		}
 		JCTree jcTree = this.converter.domToJavac.get(type);
+		if( !this.isRecoveringBindings && jcTree.type instanceof ErrorType) {
+			return null;
+		}
+
 		if (jcTree instanceof JCIdent ident && ident.type != null) {
 			if (ident.type instanceof PackageType) {
 				return null;
