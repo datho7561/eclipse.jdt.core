@@ -32,10 +32,14 @@ import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.LinkTree;
 import com.sun.source.doctree.SeeTree;
+import com.sun.source.tree.AnnotationTree;
+import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MemberSelectTree;
+import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.ModifiersTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TreeScanner;
@@ -44,9 +48,13 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.parser.Tokens.Comment;
 import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
 import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCAnnotation;
+import com.sun.tools.javac.tree.JCTree.JCAssign;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
+import com.sun.tools.javac.tree.JCTree.JCLiteral;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 
 /**
@@ -110,6 +118,23 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 	@Override
 	public Void visitImport(ImportTree node, Void p) {
 		// Do not visit subtree; access restriction errors are not reported on imports
+		return null;
+	}
+
+
+	@Override
+	public Void visitClass(ClassTree node, Void p) {
+		if (!isRestrictionWarningSuppressed(node.getModifiers())) {
+			return super.visitClass(node, p);
+		}
+		return null;
+	}
+
+	@Override
+	public Void visitMethod(MethodTree node, Void p) {
+		if (!isRestrictionWarningSuppressed(node.getModifiers())) {
+			return super.visitMethod(node, p);
+		}
 		return null;
 	}
 
@@ -290,6 +315,28 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 				}
 			}
 		}
+	}
+
+	static final String SUPPRESS_WARNINGS = "java.lang.SuppressWarnings";
+	static final String RESTRICTION = "\"restriction\"";
+	private static boolean isRestrictionWarningSuppressed(ModifiersTree modifiers) {
+		for (AnnotationTree annotation : modifiers.getAnnotations()) {
+			JCAnnotation jcAnnotation = (JCAnnotation) annotation;
+			if (SUPPRESS_WARNINGS.equals(jcAnnotation.annotationType.type.tsym.getQualifiedName().toString())) {
+				for (JCExpression expr : jcAnnotation.args) {
+					if (expr instanceof JCAssign jcAssign) {
+						if (RESTRICTION.equals(jcAssign.rhs.toString())) {
+							return true;
+						}
+					} else if (expr instanceof JCLiteral) {
+						if (RESTRICTION.equals(expr.toString())) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+		return false;
 	}
 
 	private void collectProblemForFQN(String fqn, JCTree node, byte accessType, String memberName) {
