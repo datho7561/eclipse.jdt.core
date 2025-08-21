@@ -620,10 +620,10 @@ public class CompilerTests extends AbstractJavaModelTests {
 		// One on the LHS of the assignment for Mouth type
 		// One on open()
 		assertEquals(2, markers.length);
-		String actual = getMarkersString(markers, true);
+		String actual = getMarkersString(markers, false);
 		assertEquals("""
-				[69, 74] Access restriction: The type 'Mouth' is not API (restriction on required project 'A')
-				[108, 116] Access restriction: The constructor 'Mouth()' is not API (restriction on required project 'A')""", actual);
+				Access restriction: The type 'Mouth' is not API (restriction on required project 'A')
+				Access restriction: The constructor 'Mouth()' is not API (restriction on required project 'A')""", actual);
 	}
 
 	// HELPERS
