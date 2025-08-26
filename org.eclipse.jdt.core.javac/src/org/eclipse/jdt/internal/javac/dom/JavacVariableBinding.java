@@ -145,7 +145,9 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 			return resolved(type.getField(this.variableSymbol.name.toString()));
 		}
 		IMethodBinding methodBinding = getDeclaringMethod();
+		IJavaElement parent = null;
 		if (methodBinding != null && methodBinding.getJavaElement() instanceof IMethod method) {
+			parent = method;
 			if (isParameter()) {
 				if (method instanceof LambdaMethod parentLambda && this.resolver.findDeclaringNode(this) instanceof VariableDeclaration decl) {
 					return new LocalVariable(parentLambda, getName(),
@@ -164,17 +166,26 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 				} catch (JavaModelException e) {
 					ILog.get().error(e.getMessage(), e);
 				}
-			} else {
-				ASTNode node = this.resolver.findNode(this.variableSymbol);
-				if (node instanceof VariableDeclarationFragment fragment) {
-					return toLocalVariable(fragment, (JavaElement) method);
-				} else if (node instanceof SingleVariableDeclaration variableDecl) {
-					return DOMToModelPopulator.toLocalVariable(variableDecl, (JavaElement) method);
-				} else if (node instanceof VariableDeclarationStatement statement && statement.fragments().size() == 1) {
-					return toLocalVariable((VariableDeclarationFragment)statement.fragments().get(0), (JavaElement)method);
-				} else if (node instanceof VariableDeclarationExpression expression && expression.fragments().size() == 1) {
-					return toLocalVariable((VariableDeclarationFragment)expression.fragments().get(0), (JavaElement)method);
-				}
+			}
+		}
+		if (parent == null
+			&& this.variableSymbol.owner instanceof MethodSymbol meth
+			&& meth.name.isEmpty()
+			&& meth.owner instanceof ClassSymbol clazz
+			&& this.resolver.bindings.getTypeBinding(clazz.type) instanceof JavacTypeBinding clazzBinding
+			&& clazzBinding.getJavaElement() instanceof IType owningType) {
+			parent = owningType.getInitializer(1);
+		}
+		if (parent instanceof JavaElement p) {
+			ASTNode node = this.resolver.findNode(this.variableSymbol);
+			if (node instanceof VariableDeclarationFragment fragment) {
+				return toLocalVariable(fragment, p);
+			} else if (node instanceof SingleVariableDeclaration variableDecl) {
+				return DOMToModelPopulator.toLocalVariable(variableDecl, p);
+			} else if (node instanceof VariableDeclarationStatement statement && statement.fragments().size() == 1) {
+				return toLocalVariable((VariableDeclarationFragment)statement.fragments().get(0), p);
+			} else if (node instanceof VariableDeclarationExpression expression && expression.fragments().size() == 1) {
+				return toLocalVariable((VariableDeclarationFragment)expression.fragments().get(0), p);
 			}
 		}
 		return null;
@@ -295,7 +306,7 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 	}
 
 	@Override
-	public ITypeBinding getDeclaringClass() {
+	public JavacTypeBinding getDeclaringClass() {
 		Symbol parentSymbol = this.variableSymbol.owner;
 		do {
 			if (parentSymbol instanceof MethodSymbol) {
