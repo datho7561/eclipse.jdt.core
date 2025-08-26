@@ -124,19 +124,21 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	protected final Types types;
 	private final Names names;
 	public final Type type;
+	private Symbol backupOwner;
 	private final boolean isGeneric; // only relevent for parameterized types
 	private boolean recovered = false;
 	private final Type[] alternatives;
 	private IJavaElement javaElement;
 	private String key;
 
-	public JavacTypeBinding(Type type, final TypeSymbol typeSymbol, Type[] alternatives, boolean likelyGeneric, JavacBindingResolver resolver) {
+	public JavacTypeBinding(Type type, final TypeSymbol typeSymbol, Type[] alternatives, Symbol backupOwner, boolean likelyGeneric, JavacBindingResolver resolver) {
 		if (!JavacBindingResolver.isTypeOfType(type)) {
 			if (typeSymbol != null) {
 				type = typeSymbol.type;
 			}
 		}
 		this.isGeneric = type.isParameterized() && likelyGeneric;
+		this.backupOwner = backupOwner;
 		this.typeSymbol = (typeSymbol == null || typeSymbol.kind == Kind.ERR) && type != null? type.tsym : typeSymbol;
 		this.type = this.isGeneric || type == null ? this.typeSymbol.type /*generic*/ : type /*specific instance*/;
 		this.resolver = resolver;
@@ -884,7 +886,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 				.map(ClassSymbol.class::cast)
 				.map(sym -> {
 					Type t = this.types.memberType(this.type, sym);
-					return this.resolver.bindings.getTypeBinding(t, isGeneric);
+					return this.resolver.bindings.getTypeBinding(t, null, sym, isGeneric);
 				})
 				.filter(Objects::nonNull)
 				.sorted(Comparator.comparing(ITypeBinding::getName))
@@ -944,12 +946,19 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public ITypeBinding getDeclaringClass() {
+		// Sometimes owner.type is JCNoType... we need a way to get a backup.
+		// test0177
+		boolean usedBackup = false;
 		Symbol parentSymbol = this.typeSymbol.owner;
 		do {
 			if (parentSymbol instanceof final ClassSymbol clazz) {
-				return this.resolver.bindings.getTypeBinding(clazz.type, true);
+				return this.resolver.bindings.getTypeBinding(clazz.type, null, clazz, true);
 			}
-			parentSymbol = parentSymbol.owner;
+			if( parentSymbol.type instanceof JCNoType && !usedBackup ) {
+				parentSymbol = backupOwner;
+			} else {
+				parentSymbol = parentSymbol.owner;
+			}
 		} while (parentSymbol != null);
 		return null;
 	}
@@ -1017,15 +1026,15 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		if (isArray()) {
 			JavacTypeBinding component = getComponentType().getErasure();
 			ArrayType arrayType = this.types.makeArrayType(component.type);
-			return this.resolver.bindings.getTypeBinding(arrayType, false);
+			return this.resolver.bindings.getTypeBinding(arrayType, null, this.typeSymbol, false);
 		}
 		if (isParameterizedType()) {
 			// generic binding
-			return this.resolver.bindings.getTypeBinding(this.type, true);
+			return this.resolver.bindings.getTypeBinding(this.type, null, this.typeSymbol, true);
 		}
 		if (isRawType() && this.typeSymbol.type.isParameterized()) {
 			// generic binding
-			return this.resolver.bindings.getTypeBinding(this.typeSymbol.type, true);
+			return this.resolver.bindings.getTypeBinding(this.typeSymbol.type, null,this.typeSymbol, true);
 		}
 		return this.resolver.bindings.getTypeBinding(this.types.erasureRecursive(this.type));
 	}
@@ -1302,9 +1311,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 
 	private ITypeBinding[] getUncheckedTypeArguments(Type t, TypeSymbol ts) {
-		return t.getTypeArguments()
-				.stream()
-				.map(this.resolver.bindings::getTypeBinding)
+		List<Type> tmp = t.getTypeArguments();
+		return tmp.stream()
+				.map(x -> this.resolver.bindings.getTypeBinding(x, null, ts, false))
 				.toArray(ITypeBinding[]::new);
 	}
 
@@ -1362,7 +1371,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			boolean isUnbound = wildcardType.isUnbound();
 			boolean isSuperBound = wildcardType.isSuperBound();
 			if (wildcardType.type instanceof Type.TypeVar typeVar) {
-				return this.resolver.bindings.getTypeVariableBinding(typeVar).getTypeBounds();
+				return this.resolver.bindings.getTypeVariableBinding(typeVar, this.typeSymbol).getTypeBounds();
 			}
 			return new ITypeBinding[] { isUnbound || isSuperBound ?
 					this.resolver.resolveWellKnownType(Object.class.getName()) :
@@ -1379,7 +1388,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		// TODO handle wildcard types here? test0114
 		return this.typeSymbol.type == this.type
 			? this
-			: this.resolver.bindings.getTypeBinding(this.typeSymbol.type, true);
+			: this.resolver.bindings.getTypeBinding(this.typeSymbol.type, null, this.typeSymbol, true);
 	}
 
 	@Override

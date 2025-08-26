@@ -272,24 +272,21 @@ public class JavacBindingResolver extends BindingResolver {
 		}
 		//
 		private Map<JavacTypeBinding, JavacTypeBinding> typeBinding = new HashMap<>();
-		public JavacTypeBinding getTypeBinding(JCTree tree, com.sun.tools.javac.code.Type type) {
-			return getTypeBinding(type, tree instanceof JCClassDecl);
-		}
-
+//		public JavacTypeBinding getTypeBinding(JCTree tree, com.sun.tools.javac.code.Type type) {
+//			return getTypeBinding(type, null, null, tree instanceof JCClassDecl);
+//		}
+//
 		public JavacTypeBinding getTypeBinding(com.sun.tools.javac.code.Type type) {
 			if (type == null) {
 				return null;
 			}
 
 			boolean likelyGeneric = false;
-			return getTypeBinding(type.baseType() /* remove metadata for constant values */, likelyGeneric);
+			return getTypeBinding(type.baseType(), null, null, likelyGeneric);
 		}
-		public JavacTypeBinding getTypeBinding(com.sun.tools.javac.code.Type type, boolean isGeneric) {
-			return getTypeBinding(type, null, isGeneric);
-		}
-		public JavacTypeBinding getTypeBinding(com.sun.tools.javac.code.Type type, com.sun.tools.javac.code.Type[] alternatives, boolean isGeneric) {
+		public JavacTypeBinding getTypeBinding(com.sun.tools.javac.code.Type type, com.sun.tools.javac.code.Type[] alternatives, Symbol backupOwner, boolean isGeneric) {
 			if (type instanceof com.sun.tools.javac.code.Type.TypeVar typeVar) {
-				return getTypeVariableBinding(typeVar);
+				return getTypeVariableBinding(typeVar, backupOwner);
 			}
 			if (type == null || type == com.sun.tools.javac.code.Type.noType) {
 				return null;
@@ -300,7 +297,7 @@ public class JavacBindingResolver extends BindingResolver {
 						&& !(originalType instanceof com.sun.tools.javac.code.Type.MethodType)
 						&& !(originalType instanceof com.sun.tools.javac.code.Type.ForAll)
 						&& !(originalType instanceof com.sun.tools.javac.code.Type.ErrorType)) {
-					JavacTypeBinding newInstance = new JavacTypeBinding(originalType, type.tsym, alternatives, isGeneric, JavacBindingResolver.this) { };
+					JavacTypeBinding newInstance = new JavacTypeBinding(originalType, type.tsym, alternatives, backupOwner, isGeneric, JavacBindingResolver.this) { };
 					typeBinding.putIfAbsent(newInstance, newInstance);
 					JavacTypeBinding jcb = typeBinding.get(newInstance);
 					jcb.setRecovered(true);
@@ -308,7 +305,7 @@ public class JavacBindingResolver extends BindingResolver {
 				} else if (errorType.tsym instanceof ClassSymbol classErrorSymbol &&
 							Character.isJavaIdentifierStart(classErrorSymbol.getSimpleName().charAt(0))) {
 					// non usable original type: try symbol
-					JavacTypeBinding newInstance = new JavacTypeBinding(classErrorSymbol.type, classErrorSymbol, alternatives, isGeneric, JavacBindingResolver.this) { };
+					JavacTypeBinding newInstance = new JavacTypeBinding(classErrorSymbol.type, classErrorSymbol, alternatives, backupOwner, isGeneric, JavacBindingResolver.this) { };
 					typeBinding.putIfAbsent(newInstance, newInstance);
 					JavacTypeBinding jcb = typeBinding.get(newInstance);
 					jcb.setRecovered(true);
@@ -326,14 +323,14 @@ public class JavacBindingResolver extends BindingResolver {
 				// Fail back to an hopefully better type
 				type = type.tsym.type;
 			}
-			JavacTypeBinding newInstance = new JavacTypeBinding(type, type.tsym, alternatives, isGeneric, JavacBindingResolver.this) { };
+			JavacTypeBinding newInstance = new JavacTypeBinding(type, type.tsym, alternatives, backupOwner, isGeneric, JavacBindingResolver.this) { };
 			typeBinding.putIfAbsent(newInstance, newInstance);
 			return typeBinding.get(newInstance);
 		}
 		//
 		private Map<JavacTypeVariableBinding, JavacTypeVariableBinding> typeVariableBindings = new HashMap<>();
-		public JavacTypeVariableBinding getTypeVariableBinding(TypeVar typeVar) {
-			JavacTypeVariableBinding newInstance = new JavacTypeVariableBinding(typeVar, (TypeVariableSymbol)typeVar.tsym, JavacBindingResolver.this) { };
+		public JavacTypeVariableBinding getTypeVariableBinding(TypeVar typeVar, Symbol backupOwner) {
+			JavacTypeVariableBinding newInstance = new JavacTypeVariableBinding(typeVar, (TypeVariableSymbol)typeVar.tsym, backupOwner, JavacBindingResolver.this) { };
 			typeVariableBindings.putIfAbsent(newInstance, newInstance);
 			return typeVariableBindings.get(newInstance);
 		}
@@ -371,9 +368,9 @@ public class JavacBindingResolver extends BindingResolver {
 				return getModuleBinding(typeSymbol);
 			} else if (owner instanceof Symbol.TypeVariableSymbol typeVariableSymbol) {
 				if (type instanceof TypeVar typeVar) {
-					return getTypeVariableBinding(typeVar);
+					return getTypeVariableBinding(typeVar, owner);
 				} else if (typeVariableSymbol.type instanceof TypeVar typeVar) {
-					return getTypeVariableBinding(typeVar);
+					return getTypeVariableBinding(typeVar, owner);
 				}
 				// without the type there is not much we can do; fallthrough to null
 			} else if (owner instanceof TypeSymbol typeSymbol) {
@@ -687,7 +684,7 @@ public class JavacBindingResolver extends BindingResolver {
 				return res;
 			}
 			if (jcta.getType().type instanceof ErrorType errorType) {
-				res = this.bindings.getTypeBinding(errorType.getOriginalType(), true);
+				res = this.bindings.getTypeBinding(errorType.getOriginalType(), null, null, true);
 				if (res != null) {
 					return res;
 				}
@@ -707,14 +704,14 @@ public class JavacBindingResolver extends BindingResolver {
 			for (int i = 0 ; i < alternativesArray.length; i++) {
 				alternativesArray[i] = unionType.alternatives.get(i).type;
 			}
-			return this.bindings.getTypeBinding(unionType.type, alternativesArray, false);
+			return this.bindings.getTypeBinding(unionType.type, alternativesArray, null, false);
 		}
 		if (jcTree instanceof JCTypeIntersection intersectionType) {
 			com.sun.tools.javac.code.Type[] alternativesArray = new com.sun.tools.javac.code.Type[intersectionType.bounds.size()];
 			for (int i = 0 ; i < alternativesArray.length; i++) {
 				alternativesArray[i] = intersectionType.bounds.get(i).type;
 			}
-			return this.bindings.getTypeBinding(intersectionType.type, alternativesArray, false);
+			return this.bindings.getTypeBinding(intersectionType.type, alternativesArray, null, false);
 		}
 
 //			return this.flowResult.stream().map(env -> env.enclClass)
@@ -821,10 +818,10 @@ public class JavacBindingResolver extends BindingResolver {
 			return new JavacErrorTypeBinding(javacNode.type, javacNode.type.tsym, null, true, JavacBindingResolver.this, jcClassDecl.sym);
 		}
 		if (javacNode instanceof JCClassDecl jcClassDecl && jcClassDecl.type != null) {
-			return this.bindings.getTypeBinding(jcClassDecl.type, true);
+			return this.bindings.getTypeBinding(jcClassDecl.type, null, null, true);
 		}
 		if (javacNode instanceof JCClassDecl jcClassDecl && jcClassDecl.sym != null && jcClassDecl.sym.type != null) {
-			return this.bindings.getTypeBinding(jcClassDecl.sym.type, true);
+			return this.bindings.getTypeBinding(jcClassDecl.sym.type, null, null, true);
 		}
 		return null;
 	}
@@ -834,7 +831,7 @@ public class JavacBindingResolver extends BindingResolver {
 		resolve();
 		JCTree javacNode = this.converter.domToJavac.get(enumDecl);
 		if (javacNode instanceof JCClassDecl jcClassDecl && jcClassDecl.type != null) {
-			return this.bindings.getTypeBinding(jcClassDecl.type, true);
+			return this.bindings.getTypeBinding(jcClassDecl.type, null, null, true);
 		}
 		return null;
 	}
@@ -844,7 +841,7 @@ public class JavacBindingResolver extends BindingResolver {
 		resolve();
 		JCTree javacNode = this.converter.domToJavac.get(anonymousClassDecl);
 		if (javacNode instanceof JCClassDecl jcClassDecl && jcClassDecl.type != null) {
-			return this.bindings.getTypeBinding(jcClassDecl.type, true);
+			return this.bindings.getTypeBinding(jcClassDecl.type, null, null, true);
 		}
 		return null;
 	}
@@ -1349,7 +1346,7 @@ public class JavacBindingResolver extends BindingResolver {
 			if( st == pt.getType()) {
 				tree = this.converter.domToJavac.get(pt);
 				if (tree.type != null && !tree.type.isErroneous()) {
-					IBinding b = this.bindings.getTypeBinding(tree.type, isTypeDeclaration);
+					IBinding b = this.bindings.getTypeBinding(tree.type, null, null, isTypeDeclaration);
 					if( b != null ) {
 						return b;
 					}
@@ -1364,7 +1361,7 @@ public class JavacBindingResolver extends BindingResolver {
 				return null;
 			}
 			if (isTypeDeclaration) {
-				return this.bindings.getTypeBinding(ident.type != null ? ident.type : ident.sym.type, true);
+				return this.bindings.getTypeBinding(ident.type != null ? ident.type : ident.sym.type, null, null, true);
 			}
 			return this.bindings.getBinding(ident.sym, ident.type != null ? ident.type : ident.sym.type);
 		}
@@ -1430,6 +1427,20 @@ public class JavacBindingResolver extends BindingResolver {
 		return null;
 	}
 
+	private Symbol findBackupOwner(JCTree tree) {
+		if( tree instanceof JCMethodInvocation jcmi ) {
+			return findActualOwner(jcmi.meth);
+		}
+		return null;
+	}
+
+	private Symbol findActualOwner(JCExpression e) {
+		// TODO flesh this out?
+		if( e instanceof JCFieldAccess jcfa && jcfa.sym != null )
+			return jcfa.sym.owner;
+		return null;
+	}
+
 	@Override
 	public ITypeBinding resolveExpressionType(Expression expr) {
 		resolve();
@@ -1451,7 +1462,7 @@ public class JavacBindingResolver extends BindingResolver {
 		if (jcTree instanceof JCExpression expression
 			&& isTypeOfType(expression.type)
 			&& !expression.type.isErroneous()) {
-			var res = this.bindings.getTypeBinding(expression.type);
+			var res = this.bindings.getTypeBinding(expression.type, null, findBackupOwner(expression), false);
 			if (res != null) {
 				return res;
 			}
@@ -1787,7 +1798,7 @@ public class JavacBindingResolver extends BindingResolver {
 				}
 			}
 		}
-		return type != null ? this.bindings.getTypeBinding(type, true) : null;
+		return type != null ? this.bindings.getTypeBinding(type, null, null, true) : null;
 	}
 
 	@Override

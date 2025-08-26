@@ -526,10 +526,10 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 	@Override
 	public ITypeBinding getDeclaringClass() {
 		if (this.parentType != null) {
-			return this.resolver.bindings.getTypeBinding(this.parentType, isDeclaration);
+			return this.resolver.bindings.getTypeBinding(this.parentType, null, this.methodSymbol,  isDeclaration);
 		}
 		if (this.methodSymbol != null && this.methodSymbol.owner instanceof ClassSymbol clazz) {
-			return this.resolver.bindings.getTypeBinding(clazz.type, isDeclaration);
+			return this.resolver.bindings.getTypeBinding(clazz.type, null, this.methodSymbol, isDeclaration);
 		}
 		return null;
 	}
@@ -578,7 +578,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 
 	@Override
 	public ITypeBinding getReturnType() {
-		return this.resolver.bindings.getTypeBinding(this.methodType.getReturnType(), false);
+		return this.resolver.bindings.getTypeBinding(this.methodType.getReturnType(), null, this.methodSymbol, false);
 	}
 
 	@Override

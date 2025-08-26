@@ -12,9 +12,9 @@ package org.eclipse.jdt.internal.javac.dom;
 
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 
-import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
+import com.sun.tools.javac.code.Type;
 
 /**
  * Represents a binding for a type that javac struggles to recover,
@@ -26,7 +26,7 @@ public class JavacErrorTypeBinding extends JavacTypeBinding {
 
 	public JavacErrorTypeBinding(Type type, final TypeSymbol typeSymbol, Type[] alternatives, boolean isDeclaration,
 			JavacBindingResolver resolver, TypeSymbol originatingSymbol) {
-		super(type, typeSymbol, alternatives, isDeclaration, resolver);
+		super(type, typeSymbol, alternatives, null, isDeclaration, resolver);
 		this.originatingSymbol = originatingSymbol;
 	}
 
