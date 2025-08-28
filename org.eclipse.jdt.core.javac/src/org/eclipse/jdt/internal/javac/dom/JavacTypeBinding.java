@@ -1181,7 +1181,8 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			if( type.tsym.isAnonymous()) {
 				return "";
 			}
-			return this.resolver.bindings.getTypeBinding(at.getComponentType()).getQualifiedName() + "[]";
+			JavacTypeBinding componentType = this.resolver.bindings.getTypeBinding(at.getComponentType());
+			return (componentType == null ? "" : componentType.getQualifiedName()) + "[]";
 		}
 		if (type instanceof WildcardType wt) {
 			if (wt.type == null
