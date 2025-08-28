@@ -670,6 +670,7 @@ public class JavacProblemConverter {
 			case "compiler.err.illegal.start.of.stmt" -> IProblem.Syntax;
 			case "compiler.err.variable.not.allowed" -> IProblem.Syntax;
 			case "compiler.err.illegal.dot" -> IProblem.Syntax;
+			case "compiler.err.statement.not.expected" -> IProblem.Syntax;
 			case "compiler.warn.raw.class.use" -> IProblem.RawTypeReference;
 			case "compiler.err.cant.resolve.location" -> switch (getDiagnosticArgumentByType(diagnostic, Kinds.KindName.class)) {
 					case CLASS -> IProblem.UndefinedType;
@@ -850,6 +851,7 @@ public class JavacProblemConverter {
 			case "compiler.warn.restricted.type.not.allowed.preview" -> IProblem.RestrictedTypeName;
 			case "compiler.err.illegal.esc.char" -> IProblem.InvalidEscape;
 			case "compiler.err.preview.feature.disabled", "compiler.err.preview.feature.disabled.plural" -> IProblem.PreviewFeatureDisabled;
+			case "compiler.warn.preview.feature.use" -> IProblem.PreviewFeatureUsed;
 			case "compiler.err.is.preview" -> IProblem.PreviewAPIUsed;
 			case "compiler.err.cant.access" -> IProblem.NotAccessibleType;
 			case "compiler.err.var.not.initialized.in.default.constructor" -> IProblem.UninitializedBlankFinalField;
@@ -995,6 +997,7 @@ public class JavacProblemConverter {
 			case "compiler.err.non.sealed.sealed.or.final.expected" -> IProblem.SealedMissingClassModifier;
 			case "compiler.err.enum.annotation.must.be.enum.constant" -> IProblem.AnnotationValueMustBeAnEnumConstant;
 			case "compiler.err.package.in.other.module" -> IProblem.ConflictingPackageFromOtherModules;
+			case "compiler.err.pkg.clashes.with.class.of.same.name" -> IProblem.PackageCollidesWithType;
 			case "compiler.err.module.decl.sb.in.module-info.java" -> {
 				if (!(diagnostic instanceof JCDiagnostic jcDiagnostic)) {
 					yield -1;
