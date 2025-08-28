@@ -433,6 +433,9 @@ class JavadocConverter {
 	}
 
 	private Stream<Region> splitLines(DCText text, boolean keepWhitespaces) {
+		if (text == null) {
+			return Stream.of();
+		}
 		return splitLines(text.getBody(), text.getStartPosition(), text.getEndPosition(), keepWhitespaces);
 	}
 
