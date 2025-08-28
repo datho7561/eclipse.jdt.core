@@ -647,7 +647,7 @@ public class JavacBindingResolver extends BindingResolver {
 		}
 		JCTree jcTree = this.converter.domToJavac.get(type);
 		if( !this.isRecoveringBindings ) {
-			if( jcTree.type instanceof ErrorType )
+			if (jcTree != null && jcTree.type instanceof ErrorType )
 				return null;
 		}
 
