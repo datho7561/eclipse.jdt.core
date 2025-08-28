@@ -609,7 +609,7 @@ public class JavacBindingResolver extends BindingResolver {
 			return getJavacSymbol(valuePair.method);
 		}
 		if (binding instanceof JavacAnnotationBinding annotation) {
-			return getJavacSymbol(annotation.getAnnotationType());
+			return getJavacSymbol(annotation.getRecipient());
 		}
 		if (binding instanceof JavacMethodBinding method) {
 			return method.methodSymbol;
