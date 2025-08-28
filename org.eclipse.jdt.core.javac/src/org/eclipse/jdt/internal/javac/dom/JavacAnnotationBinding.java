@@ -43,11 +43,11 @@ public abstract class JavacAnnotationBinding implements IAnnotationBinding {
 		return obj instanceof JavacAnnotationBinding other
 				&& Objects.equals(this.resolver, other.resolver)
 				&& Objects.equals(this.annotation, other.annotation)
-				&& Objects.equals(this.recipient, other.recipient);
+				&& Objects.equals(this.getRecipient(), other.getRecipient());
 	}
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.resolver, this.annotation, this.recipient);
+		return Objects.hash(this.resolver, this.annotation, this.getRecipient());
 	}
 
 	@Override
@@ -88,8 +88,8 @@ public abstract class JavacAnnotationBinding implements IAnnotationBinding {
 	@Override
 	public String getKey() {
 		StringBuilder builder = new StringBuilder();
-		if (this.recipient != null) {
-			builder.append(this.recipient.getKey());
+		if (this.getRecipient() != null) {
+			builder.append(this.getRecipient().getKey());
 		}
 		builder.append('@');
 		ITypeBinding annotationType = this.getAnnotationType();
@@ -144,5 +144,9 @@ public abstract class JavacAnnotationBinding implements IAnnotationBinding {
 		return '@' + getName() + '(' +
 				Arrays.stream(getAllMemberValuePairs()).map(IMemberValuePairBinding::toString).collect(Collectors.joining(","))
 			+ ')';
+	}
+
+	public IBinding getRecipient() {
+		return recipient;
 	}
 }
