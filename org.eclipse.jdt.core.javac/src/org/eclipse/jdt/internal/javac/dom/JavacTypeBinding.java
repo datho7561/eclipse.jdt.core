@@ -857,7 +857,12 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 					Type.MethodType methodType = this.types.memberType(this.type, sym).asMethodType();
 					return this.resolver.bindings.getMethodBinding(methodType, sym, this.type, isGeneric, null);
 				}).filter(Objects::nonNull);
-		if (!isFromSource()) {
+		if (isFromSource()) {
+			methods = methods.sorted(Comparator.comparingInt(member -> {
+				ASTNode node = this.resolver.findDeclaringNode(member);
+				return node == null ? Integer.MAX_VALUE : node.getStartPosition();
+			}));
+		} else {
 			// JDT's class reader keeps the order for fields and methods
 			// rely on it to ensure we return the same order in bindings,
 			// as expected in various tests
