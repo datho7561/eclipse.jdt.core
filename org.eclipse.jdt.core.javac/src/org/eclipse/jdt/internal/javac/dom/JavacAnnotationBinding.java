@@ -13,6 +13,7 @@ package org.eclipse.jdt.internal.javac.dom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.eclipse.core.runtime.ILog;
@@ -62,27 +63,27 @@ public abstract class JavacAnnotationBinding implements IAnnotationBinding {
 
 	@Override
 	public int getModifiers() {
-		return getAnnotationType().getModifiers();
+		return getAnnotationTypeOptional().map(ITypeBinding::getModifiers).orElse(0);
 	}
 
 	@Override
 	public boolean isDeprecated() {
-		return getAnnotationType().isDeprecated();
+		return getAnnotationTypeOptional().map(ITypeBinding::isDeprecated).orElse(false);
 	}
 
 	@Override
 	public boolean isRecovered() {
-		return getAnnotationType().isRecovered();
+		return getAnnotationTypeOptional().map(ITypeBinding::isRecovered).orElse(false);
 	}
 
 	@Override
 	public boolean isSynthetic() {
-		return getAnnotationType().isSynthetic();
+		return getAnnotationTypeOptional().map(ITypeBinding::isSynthetic).orElse(false);
 	}
 
 	@Override
 	public IJavaElement getJavaElement() {
-		return getAnnotationType().getJavaElement();
+		return getAnnotationTypeOptional().map(ITypeBinding::getJavaElement).orElse(null);
 	}
 
 	@Override
@@ -136,7 +137,7 @@ public abstract class JavacAnnotationBinding implements IAnnotationBinding {
 
 	@Override
 	public String getName() {
-		return getAnnotationType().getName();
+		return getAnnotationTypeOptional().map(ITypeBinding::getName).orElse(null);
 	}
 
 	@Override
@@ -148,5 +149,9 @@ public abstract class JavacAnnotationBinding implements IAnnotationBinding {
 
 	public IBinding getRecipient() {
 		return recipient;
+	}
+
+	private Optional<ITypeBinding> getAnnotationTypeOptional() {
+		return Optional.ofNullable(getAnnotationType());
 	}
 }
