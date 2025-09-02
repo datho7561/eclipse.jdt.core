@@ -91,9 +91,8 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 	}
 
 	public JavacMethodBinding(MethodType methodType, MethodSymbol methodSymbol, Type parentType, JavacBindingResolver resolver, boolean explicitSynthetic, boolean isDeclaration, List<Type> resolvedTypeArgs) {
-		MethodSymbol sym = methodSymbol != null && methodSymbol.baseSymbol() instanceof MethodSymbol base && base.isVarArgs() ? base : methodSymbol;
-		this.methodType = sym != null && sym.isVarArgs() && sym.type instanceof MethodType mt ? mt : methodType;
-		this.methodSymbol = methodSymbol != null && methodSymbol.isVarArgs() ? (MethodSymbol)methodSymbol.baseSymbol() : methodSymbol;
+		this.methodType = methodType != null ? methodType : (methodSymbol != null ? methodSymbol.type.asMethodType() : null);
+		this.methodSymbol = methodSymbol;
 		this.parentType = parentType == null && methodSymbol != null && methodSymbol.owner instanceof ClassSymbol classSymbol && JavacBindingResolver.isTypeOfType(classSymbol.type) ?
 				classSymbol.type : parentType;
 		this.isDeclaration = isParameterized(methodSymbol) && isDeclaration;
@@ -730,8 +729,8 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		// This method intentionally converts the type to its generic type,
 		// i.e. drops the type arguments
 		// i.e. <code>this.<String>getValue(12);</code> will be converted back to <code><T> T getValue(int i) {</code>
-		MethodType mt = (this.methodSymbol == null ? this.methodType : this.methodSymbol.type.asMethodType());
-		return this.resolver.bindings.getMethodBinding(mt, methodSymbol, null, true, null);
+		MethodType mt = (this.methodSymbol == null ? this.methodType : this.methodSymbol.baseSymbol().type.asMethodType());
+		return this.resolver.bindings.getMethodBinding(mt, methodSymbol != null && methodSymbol.baseSymbol() instanceof MethodSymbol base ? base : methodSymbol, null, true, null);
 	}
 
 	@Override
