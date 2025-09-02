@@ -94,6 +94,7 @@ import com.sun.tools.javac.code.Symbol.PackageSymbol;
 import com.sun.tools.javac.comp.CompileStates.CompileState;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.main.Option;
+import com.sun.tools.javac.main.Option.OptionKind;
 import com.sun.tools.javac.parser.JavadocTokenizer;
 import com.sun.tools.javac.parser.Scanner;
 import com.sun.tools.javac.parser.ScannerFactory;
@@ -756,8 +757,13 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			fileObjects.add(fileObject);
 		}
 
-
-		Iterable<String> options = configureAPIfNecessary(fileManager) ? null : Arrays.asList("-proc:none");
+		// some options needs to be passed to getTask() to be properly handled
+		// (just having them set in Options is sometimes not enough). So we
+		// turn them back into CLI arguments to pass them.
+		List<String> options = new ArrayList<>(toCLIOptions(javacOptions));
+		if (!configureAPTIfNecessary(fileManager)) {
+			options.add("-proc:none");
+		}
 		JavacTask task = ((JavacTool)compiler).getTask(null, fileManager, null /* already added to context */, options, List.of() /* already set */, fileObjects, context);
 		{
 			// don't know yet a better way to ensure those necessary flags get configured
@@ -1169,7 +1175,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		};
 	}
 
-	private boolean configureAPIfNecessary(JavacFileManager fileManager) {
+	private boolean configureAPTIfNecessary(JavacFileManager fileManager) {
 		Iterable<? extends File> apPaths = fileManager.getLocation(StandardLocation.ANNOTATION_PROCESSOR_PATH);
 		if (apPaths != null) {
 			return true;
@@ -1213,4 +1219,20 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		return false;
 	}
 
+	private static List<String> toCLIOptions(Options opts) {
+		return opts.keySet().stream().map(Option::lookup)
+			.filter(Objects::nonNull)
+			.filter(opt -> opt.getKind() != OptionKind.HIDDEN)
+			.map(opt ->
+				switch (opt.getArgKind()) {
+				case NONE -> Stream.of(opt.primaryName);
+				case REQUIRED -> opt.primaryName.endsWith("=") || opt.primaryName.endsWith(":") ? Stream.of(opt.primaryName + opts.get(opt)) : Stream.of(opt.primaryName, opts.get(opt));
+				case ADJACENT -> {
+					var value = opts.get(opt);
+					yield value == null || value.isEmpty() ? Arrays.stream(new String[0]) :
+							Stream.of(opt.primaryName + opts.get(opt));
+				}
+			}).flatMap(Function.identity())
+			.toList();
+	}
 }
