@@ -41,7 +41,9 @@ import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.IClasspathAttribute;
 import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
@@ -181,13 +183,14 @@ public class JavacUtils {
 		if (limitModules != null && !limitModules.isBlank()) {
 			options.put(Option.LIMIT_MODULES, limitModules);
 		}
-		if (nineOrLater && !options.isSet(Option.RELEASE) && javaProject instanceof JavaProject javaProjectImpl) {
+		if (!options.isSet(Option.RELEASE) && javaProject instanceof JavaProject) {
 			try {
-				for (IClasspathEntry entry : javaProject.getRawClasspath()) {
-					if (entry.getPath() != null && entry.getPath().toString().startsWith("org.eclipse.jdt.launching.JRE_CONTAINER")) {
-						for (IClasspathEntry resolved : javaProjectImpl.resolveClasspath(new IClasspathEntry[] { entry })) {
-							options.put(Option.SYSTEM, resolved.getPath().toString());
-						}
+				IType systemType = javaProject.findType(Object.class.getName());
+				if (systemType != null) {
+					IJavaElement element = systemType.getAncestor(IJavaElement.PACKAGE_FRAGMENT_ROOT);
+					IPath path = element.getPath();
+					if (path != null && path.toFile().exists()) {
+						options.put(nineOrLater ? Option.SYSTEM : Option.BOOT_CLASS_PATH, path.toFile().getAbsolutePath());
 					}
 				}
 			} catch (JavaModelException ex) {
