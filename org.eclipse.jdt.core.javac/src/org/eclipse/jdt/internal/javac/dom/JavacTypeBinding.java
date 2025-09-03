@@ -208,6 +208,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public IJavaElement getJavaElement() {
+		if (isPrimitive()) {
+			return null;
+		}
 		if (this.javaElement == null) {
 			this.javaElement = computeJavaElement();
 		}
