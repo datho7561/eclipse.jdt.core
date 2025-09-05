@@ -7749,7 +7749,7 @@ public class ASTConverter15JLS8Test extends ConverterTestSetup {
 		String contents =
 			"package test0237;\n" +
 			"public class X {\n" +
-			"	Zork foo() {}\n" +
+			"	Zork foo() {return null;}\n" +
 			"}";
 		ASTNode node = buildAST(
 				contents,
