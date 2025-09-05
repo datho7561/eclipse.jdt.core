@@ -7059,8 +7059,6 @@ public class ASTConverter15Test extends ConverterTestSetup {
 	public void test0218() throws JavaModelException {
     	this.workingCopy = getWorkingCopy("/Converter15/src/X.java", true/*resolve*/);
     	String contents =
-			"import java.util.List;\n" +
-			"\n" +
 			"public class X {\n" +
 			"	/**\n" +
 			"	 * @category fo\n" +
@@ -7101,8 +7099,6 @@ public class ASTConverter15Test extends ConverterTestSetup {
 	public void test0219() throws JavaModelException {
 		this.workingCopy = getWorkingCopy("/Converter15/src/X.java", true/*resolve*/);
 		String contents =
-			"import java.util.List;\n" +
-			"\n" +
 			"public class X {\n" +
 			"	/**\n" +
 			"	 * @category fo\n" +
