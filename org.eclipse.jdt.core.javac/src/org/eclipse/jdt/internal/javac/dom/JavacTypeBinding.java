@@ -1070,6 +1070,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public JavacTypeBinding getErasure() {
+		if (isGenericType()) {
+			return this;
+		}
 		if (isArray()) {
 			JavacTypeBinding component = getComponentType().getErasure();
 			ArrayType arrayType = this.types.makeArrayType(component.type);
