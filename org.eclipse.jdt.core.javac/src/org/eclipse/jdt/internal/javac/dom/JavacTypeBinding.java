@@ -433,6 +433,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			}
 			return key;
 		}
+		if (isArray()) {
+			return "[" + getComponentType().getKey();
+		}
 		String b3 = getKeyWithPossibleGenerics(this.type, this.typeSymbol, tb -> tb != null ? tb.getKey() : KeyUtils.OBJECT_KEY, true);
 		if( (this.type.isSuperBound() || this.type.isExtendsBound()) && this.type instanceof WildcardType wt) {
 			String base1 = getKey(this.type, this.typeSymbol.flatName(), false, true);
