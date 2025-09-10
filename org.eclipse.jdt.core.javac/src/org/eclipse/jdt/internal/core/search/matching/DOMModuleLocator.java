@@ -21,6 +21,7 @@ import org.eclipse.jdt.core.dom.ModuleDeclaration;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.OpensDirective;
 import org.eclipse.jdt.core.dom.RequiresDirective;
+import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
 import org.eclipse.jdt.internal.core.search.LocatorResponse;
 
 public class DOMModuleLocator extends DOMPatternLocator {
@@ -44,16 +45,18 @@ public class DOMModuleLocator extends DOMPatternLocator {
 	public LocatorResponse match(Name name, NodeSetWrapper nodeSet, MatchLocator locator) {
 		if (pattern.findReferences
 			&& isValidLocationForModuleNameReference(name)
-			&& matchesName(name.toString().toCharArray(), pattern.name)) {
+			&& matchesName(pattern.name, name.toString().toCharArray())) {
 			return toResponse(POSSIBLE_MATCH);
 		}
 		return toResponse(IMPOSSIBLE_MATCH);
 	}
 
 	private boolean isValidLocationForModuleNameReference(ASTNode name) {
-		if (name.getLocationInParent() == RequiresDirective.NAME_PROPERTY
-		    || name.getLocationInParent() == ExportsDirective.MODULES_PROPERTY
-		    || name.getLocationInParent() == OpensDirective.MODULES_PROPERTY) {
+		StructuralPropertyDescriptor loc = name.getLocationInParent();
+		if (loc == RequiresDirective.NAME_PROPERTY
+		    || loc == ExportsDirective.MODULES_PROPERTY
+		    || loc == OpensDirective.MODULES_PROPERTY
+		    || loc == ImportDeclaration.NAME_PROPERTY) {
 			return true;
 		}
 		if (name.getAST().apiLevel() >= AST.JLS23 &&
