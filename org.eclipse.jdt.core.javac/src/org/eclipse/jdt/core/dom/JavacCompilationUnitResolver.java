@@ -603,7 +603,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					problemConverter.registerUnit(e.getSourceFile(), u);
 				}
 
-				if (e.getKind() == TaskEvent.Kind.ANALYZE) {
+				if (e.getKind() == TaskEvent.Kind.ANALYZE && Options.instance(context).isSet(Option.XLINT)) {
 					final JavaFileObject file = e.getSourceFile();
 					final CompilationUnit dom = filesToUnits.get(file);
 					if (dom == null) {
