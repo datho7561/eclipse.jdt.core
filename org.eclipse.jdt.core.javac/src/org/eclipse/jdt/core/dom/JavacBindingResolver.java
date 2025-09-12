@@ -1821,7 +1821,7 @@ public class JavacBindingResolver extends BindingResolver {
 			recipient = td.resolveBinding();
 		}
 		var javac = this.converter.domToJavac.get(annotation);
-		if (javac instanceof JCAnnotation jcAnnotation) {
+		if (javac instanceof JCAnnotation jcAnnotation && (!jcAnnotation.type.isErroneous() || isRecoveringBindings())) {
 			return this.bindings.getAnnotationBinding(jcAnnotation.attribute, recipient);
 		}
 		return null;
