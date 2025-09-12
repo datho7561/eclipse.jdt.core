@@ -2753,6 +2753,12 @@ class JavacConverter {
 			}
 		}
 		javac.getCatches().stream().map(this::convertCatcher).forEach(res.catchClauses()::add);
+		if (javac.getCatches().isEmpty() && javac.getFinallyBlock() == null) {
+			var fakeFinallyBlock = this.ast.newBlock();
+			fakeFinallyBlock.setFlags(res.getFlags() | ASTNode.RECOVERED);
+			res.setFlags(res.getFlags() | ASTNode.MALFORMED);
+			res.setFinally(fakeFinallyBlock);
+		}
 		return res;
 	}
 
