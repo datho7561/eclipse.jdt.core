@@ -14,6 +14,7 @@
 package org.eclipse.jdt.internal.javac;
 
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -38,6 +39,7 @@ import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
 import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 
+import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.util.TreePath;
@@ -1351,10 +1353,17 @@ public class JavacProblemConverter {
 					return IProblem.MethodReturnsVoid;
 				}
 				TreePath path = getTreePath(diagnostic);
-				if (path != null && path.getParentPath() != null
-					&& path.getParentPath().getLeaf() instanceof JCNewClass) {
-					return IProblem.UndefinedConstructor;
+				if (path != null && path.getParentPath() != null) {
+					if (path.getParentPath().getLeaf() instanceof JCNewClass) {
+						return IProblem.UndefinedConstructor;
+					}
+					if (args != null && args[1] instanceof ClassType classType
+						&& Annotation.class.getName().equals(classType.tsym.getQualifiedName().toString())
+						&&  path.getParentPath().getLeaf() instanceof AnnotationTree) {
+						return IProblem.NotAnnotationType;
+					}
 				}
+
 			} else if ("compiler.misc.unexpected.ret.val".equals(diagnosticArg.getCode())) {
 				return IProblem.VoidMethodReturnsValue;
 			} else if ("compiler.misc.missing.ret.val".equals(diagnosticArg.getCode())) {

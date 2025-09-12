@@ -1062,6 +1062,8 @@ public abstract class ConverterTestSetup extends AbstractASTTests {
 				return original.equals(mapped);
 			}
 			return false;
+		case IProblem.NotAnnotationType:
+			return (arguments[0] + " is not an annotation type").equals(expected);
 		default:
 			return false;
 		}
