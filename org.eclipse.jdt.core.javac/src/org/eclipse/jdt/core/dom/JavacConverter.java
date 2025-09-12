@@ -27,6 +27,7 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import javax.lang.model.type.TypeKind;
 
@@ -2456,7 +2457,8 @@ class JavacConverter {
 				switchExpr = jcp.getExpression();
 			}
 			res.setExpression(convertExpression(switchExpr));
-			jcSwitch.getCases().stream()
+			List<JCStatement> forceToYield = new ArrayList<>();
+			List<JCStatement> allFlat = jcSwitch.getCases().stream()
 				.flatMap(switchCase -> {
 					List<JCStatement> stmts = new ArrayList<>();
 					switch(switchCase.getCaseKind()) {
@@ -2474,13 +2476,31 @@ class JavacConverter {
 							JCTree body = switchCase.getBody();
 							if (body instanceof JCExpressionStatement stmt) {
 								stmts.add(stmt);
+								forceToYield.add(stmt);
+							} else if (body instanceof JCBlock stmt) {
+								stmts.add(stmt);
 							}
 						}
 					}
 					return stmts.stream();
-				}).map(x -> convertStatement(x, res))
-				.filter(x -> x != null)
-				.forEach(res.statements()::add);
+				}).collect(Collectors.toList());
+
+				for(JCStatement jcs : allFlat ) {
+					Statement s1 = null;
+					if( forceToYield.contains(jcs) && jcs instanceof JCExpressionStatement jces) {
+						// Force this into a yield statement somehow?
+						YieldStatement yieldstmt = this.ast.newYieldStatement();
+						commonSettings(yieldstmt, jcs);
+						yieldstmt.setExpression(convertExpression(jces.getExpression()));
+						yieldstmt.setImplicit(true);
+						s1 = yieldstmt;
+					} else {
+						s1 = convertStatement(jcs, res);
+					}
+					if( s1 != null ) {
+						res.statements().add(s1);
+					}
+				}
 			return res;
 		}
 		if (javac instanceof JCCase jcCase) {
