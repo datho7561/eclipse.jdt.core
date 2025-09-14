@@ -51,6 +51,7 @@ public abstract class JavacPackageBinding implements IPackageBinding {
 				new IAnnotationBinding[0] :
 				this.getPackageSymbol().getAnnotationMirrors().stream()
 				.map(am -> this.resolver.bindings.getAnnotationBinding(am, this))
+				.filter(Objects::nonNull)
 				.toArray(IAnnotationBinding[]::new);
 	}
 
