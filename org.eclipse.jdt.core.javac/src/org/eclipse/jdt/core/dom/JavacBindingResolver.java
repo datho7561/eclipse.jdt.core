@@ -1202,10 +1202,15 @@ public class JavacBindingResolver extends BindingResolver {
 			var typeBinding = resolveType((QualifiedType)parent);
 			return typeBinding.getTypeDeclaration(); // exclude params
 		}
-		if (name.getLocationInParent() == SimpleType.NAME_PROPERTY
+		if ((name.getLocationInParent() == SimpleType.NAME_PROPERTY
 				|| name.getLocationInParent() == QualifiedType.NAME_PROPERTY
-				|| name.getLocationInParent() == NameQualifiedType.NAME_PROPERTY) { // case of "var"
-			return resolveType((Type)parent);
+				|| name.getLocationInParent() == NameQualifiedType.NAME_PROPERTY)
+			&& name.getParent() instanceof Type type) { // case of "var"
+			var typeBinding = resolveType(type);
+			boolean complexTypeChain = type.getLocationInParent() == ParameterizedType.TYPE_PROPERTY &&
+					type.getParent() instanceof ParameterizedType parameterized &&
+					parameterized.getParent() instanceof Type;
+			return complexTypeChain ? typeBinding.getErasure() : typeBinding;
 		}
 		if (name.getLocationInParent() == MethodInvocation.NAME_PROPERTY && name.getParent() instanceof MethodInvocation method) {
 			return resolveMethod(method);
