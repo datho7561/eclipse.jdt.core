@@ -28,7 +28,7 @@ public abstract class JavacMemberValuePairBinding implements IMemberValuePairBin
 	public final Object value; // might be an attribute or a direct value
 	private final JavacBindingResolver resolver;
 
-	public JavacMemberValuePairBinding(MethodSymbol key, Attribute value, JavacBindingResolver resolver) {
+	public JavacMemberValuePairBinding(MethodSymbol key, Object value, JavacBindingResolver resolver) {
 		this.method = resolver.bindings.getMethodBinding(key.type.asMethodType(), key, null, true, null);
 		this.value = value;
 		this.resolver = resolver;
@@ -116,7 +116,7 @@ public abstract class JavacMemberValuePairBinding implements IMemberValuePairBin
 
 	@Override
 	public boolean isDefault() {
-		return !(this.value instanceof Attribute attr) || this.value == this.method.methodSymbol.defaultValue;
+		return getValue() == this.method.methodSymbol.defaultValue;
 	}
 
 	@Override

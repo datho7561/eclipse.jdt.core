@@ -147,7 +147,7 @@ public class JavacBindingResolver extends BindingResolver {
 		}
 		//
 		private Map<JavacMemberValuePairBinding, JavacMemberValuePairBinding> memberValuePairBindings = new HashMap<>();
-		public JavacMemberValuePairBinding getMemberValuePairBinding(MethodSymbol key, Attribute value) {
+		public JavacMemberValuePairBinding getMemberValuePairBinding(MethodSymbol key, Object value) {
 			JavacMemberValuePairBinding newInstance = new JavacMemberValuePairBinding(key, value, JavacBindingResolver.this) { };
 			memberValuePairBindings.putIfAbsent(newInstance, newInstance);
 			return memberValuePairBindings.get(newInstance);
@@ -1839,7 +1839,7 @@ public class JavacBindingResolver extends BindingResolver {
 		resolve();
 		if (this.converter.domToJavac.get(memberValuePair) instanceof JCAssign assign &&
 			assign.lhs instanceof JCIdent ident && ident.sym instanceof MethodSymbol methodSymbol) {
-			return this.bindings.getMemberValuePairBinding(methodSymbol, null);
+			return this.bindings.getMemberValuePairBinding(methodSymbol, assign.getExpression() instanceof JCLiteral literal ? literal.getValue() : null);
 		}
 		return null;
 	}
