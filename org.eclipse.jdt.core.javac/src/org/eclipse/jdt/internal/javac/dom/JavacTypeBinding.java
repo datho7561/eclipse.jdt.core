@@ -1128,23 +1128,11 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public ITypeBinding[] getInterfaces() {
-		return this.types.interfaces(this.type).stream()
+		return (this.type instanceof ClassType classType && classType.all_interfaces_field != null ?
+				classType.all_interfaces_field : this.types.interfaces(this.type))
+				.stream()
 				.map(this.resolver.bindings::getTypeBinding)
 				.toArray(ITypeBinding[]::new);
-//		if (this.typeSymbol instanceof TypeVariableSymbol && this.type instanceof TypeVar tv) {
-//			Type t = tv.getUpperBound();
-//			if (t.tsym instanceof ClassSymbol) {
-//				JavacTypeBinding jtb = this.resolver.bindings.getTypeBinding(t);
-//				if( jtb.isInterface()) {
-//					return new ITypeBinding[] {jtb};
-//				}
-//			}
-//		}
-//
-//		if( this.typeSymbol instanceof final ClassSymbol classSymbol && classSymbol.getInterfaces() != null ) {
-//			return 	classSymbol.getInterfaces().map(this.resolver.bindings::getTypeBinding).toArray(ITypeBinding[]::new);
-//		}
-//		return new ITypeBinding[0];
 	}
 
 	@Override

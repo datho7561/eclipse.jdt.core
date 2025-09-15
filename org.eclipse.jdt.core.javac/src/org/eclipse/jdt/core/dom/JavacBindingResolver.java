@@ -1890,6 +1890,12 @@ public class JavacBindingResolver extends BindingResolver {
 		JCFieldAccess jcfa2 = (fieldAccess.sym == null && fieldAccess.selected instanceof JCFieldAccess jcfa3) ? jcfa3 : fieldAccess;
 		if( jcfa2.sym != null ) {
 			com.sun.tools.javac.code.Type typeToUse = jcfa2.type;
+			if ((typeToUse == null || typeToUse.isErroneous()) && TreeInfo.symbolFor(jcfa2) instanceof VarSymbol varSym) {
+				typeToUse = varSym.type;
+			}
+			if ((typeToUse == null || typeToUse.isErroneous()) && !isRecoveringBindings()) {
+				return null;
+			}
 			IBinding bRet = this.bindings.getBinding(jcfa2.sym, typeToUse);
 			if(bRet == null && jcfa2.selected instanceof JCTypeApply) {
 				// ??? no idea if this is a good answer
