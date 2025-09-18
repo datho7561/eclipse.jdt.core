@@ -769,7 +769,10 @@ public class JavacBindingResolver extends BindingResolver {
 		// Recovery: sometime with Javac, there is no suitable type/symbol
 		// Workaround: use a RecoveredTypeBinding
 		// Caveats: cascade to other workarounds
-		return this.bindings.getRecoveredTypeBinding(jcTree != null ? jcTree.type : null, type);
+		if (isRecoveringBindings()) {
+			return this.bindings.getRecoveredTypeBinding(jcTree != null ? jcTree.type : null, type);
+		}
+		return null;
 	}
 
 	@Override
