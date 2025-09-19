@@ -190,7 +190,9 @@ public class JavacUtils {
 					IJavaElement element = systemType.getAncestor(IJavaElement.PACKAGE_FRAGMENT_ROOT);
 					IPath path = element.getPath();
 					if (path != null && path.toFile().exists()) {
-						options.put(nineOrLater ? Option.SYSTEM : Option.BOOT_CLASS_PATH, path.toFile().getAbsolutePath());
+						if(!nineOrLater ) {
+							options.put( Option.BOOT_CLASS_PATH, path.toFile().getAbsolutePath());
+						}
 					}
 				}
 			} catch (JavaModelException ex) {

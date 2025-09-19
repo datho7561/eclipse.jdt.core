@@ -23,7 +23,7 @@
 	<packaging>eclipse-test-plugin</packaging>
 	<profiles>
 		<profile>
-			<id>test-on-javase-24</id>
+			<id>test-on-javase-25</id>
 			<build>
 				<plugins>
 					<plugin>
@@ -32,7 +32,7 @@
 						<configuration>
 							<toolchains>
 								<jdk>
-									<id>JavaSE-24</id>
+									<id>JavaSE-25</id>
 								</jdk>
 							</toolchains>
 						</configuration>
