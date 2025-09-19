@@ -15,7 +15,9 @@ import java.util.Set;
 
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.ISourceRange;
 import org.eclipse.jdt.core.ISourceReference;
 import org.eclipse.jdt.core.JavaModelException;
@@ -142,17 +144,28 @@ public class DOMFieldLocator extends DOMPatternLocator {
 			IResource r = null;
 			ISourceRange srg = null;
 			String elName = je.getElementName();
+			int start = -1;
 			try {
 				srg = sr.getSourceRange();
+				start = sr.getNameRange().getOffset();
 				IJavaElement ancestor = je.getAncestor(IJavaElement.COMPILATION_UNIT);
-				r = ancestor == null ? null : ancestor.getCorrespondingResource();
+				if( ancestor != null ) {
+					r = ancestor.getCorrespondingResource();
+					if( r == null && ancestor instanceof ICompilationUnit icu) {
+						IPackageFragmentRoot ipfr = (IPackageFragmentRoot) icu.getAncestor(IJavaElement.PACKAGE_FRAGMENT_ROOT);
+						if( !ipfr.isArchive()) {
+							r = ancestor.getResource();
+						}
+					}
+				}
 			} catch (JavaModelException jme) {
 				// ignore
 			}
-			if (srg != null) {
+			if (srg != null && start != -1) {
+				// this only works when the declaration is NOT an assignment!
 				int accuracy = getPossibleOrAccurateViaMustResolve();
 				FieldDeclarationMatch fdMatch = new FieldDeclarationMatch(je, accuracy,
-						srg.getOffset() + srg.getLength() - elName.length() - 1, elName.length(),
+						start, elName.length(),
 						locator.getParticipant(), r);
 				try {
 					locator.report(fdMatch);
