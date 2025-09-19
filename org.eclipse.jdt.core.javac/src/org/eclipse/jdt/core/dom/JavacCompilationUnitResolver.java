@@ -14,6 +14,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.CharBuffer;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -763,6 +764,9 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		if (!configureAPTIfNecessary(fileManager)) {
 			options.add("-proc:none");
 		}
+
+		options = replaceSafeSystemOption(options);
+
 		JavacTask task = ((JavacTool)compiler).getTask(null, fileManager, null /* already added to context */, options, List.of() /* already set */, fileObjects, context);
 		{
 			// don't know yet a better way to ensure those necessary flags get configured
@@ -919,6 +923,28 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 
 		return result;
+	}
+
+	private List<String> replaceSafeSystemOption(List<String> options) {
+		int ind = -1;
+		String[] arr = options.toArray(new String[options.size()]);
+		for( int i = 0; i < options.size(); i++ ) {
+			if(options.get(i).equals("--system")) {
+				ind = i + 1;
+			}
+			arr[i] = options.get(i);
+		}
+		if( ind == -1 ) {
+			return options;
+		}
+		String existingVal = arr[ind];
+		if( Paths.get(existingVal).toFile().isDirectory()) {
+			return options;
+		}
+
+		if( ind < arr.length )
+			arr[ind] = "none";
+		return Arrays.asList(arr);
 	}
 
 	/// cleans up context after analysis (nothing left to process)
