@@ -2813,6 +2813,7 @@ class JavacConverter {
 			VariableDeclarationExpression res = this.ast.newVariableDeclarationExpression(fragment);
 			commonSettings(res, javac);
 			removeTrailingSemicolonFromRange(res);
+			removeTrailingSemicolonFromRange(fragment);
 			res.setType(convertToType(decl.getType()));
 			res.modifiers().addAll(convert(decl.getModifiers(), res));
 			return res;
