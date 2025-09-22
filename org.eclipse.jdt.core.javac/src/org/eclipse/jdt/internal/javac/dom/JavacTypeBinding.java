@@ -461,12 +461,13 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 		String base1 = null;
 		String base = null;
-		if( isMember()) {
-			TypeSymbol owner = s != null ? s.owner instanceof ClassSymbol ts1a ? ts1a : null : null;
-			Type ownerType =  owner != null ? owner.type : null;
-			if(ownerType != null && t != null && (isParameterizedType(t) || isRawType(t))) {
-				base1 = getGenericTypeSignature(ownerType, owner, false);
+		if(t.getEnclosingType() instanceof ClassType enclosingClass) {
+			if(enclosingClass != null && enclosingClass.tsym != null && (isParameterizedType(t) || isRawType(t) || (isGenericType(enclosingClass) && !Modifier.isStatic(getModifiers())))) {
+				base1 = getGenericTypeSignature(enclosingClass, enclosingClass.tsym, false);
 				base = removeTrailingSemicolon(base1);
+				if (base.endsWith("<>")) { // loose
+					base = base.substring(0, base.length());
+				}
 				boolean semiRemoved = base1.length() != base.length();
 				String nameAsString = s.getSimpleName().toString();
 				if (useSlashes) {
@@ -488,8 +489,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		if (isGenericType(t)) {
 			return base + '<'
 				+ Arrays.stream(getTypeParametersForBase(t))
-					.map(ITypeBinding::getName)
-					.map(name -> 'T' + name + ';')
+					.map(typeParam -> this.isGeneric ? "T" + typeParam.getName() + ";" : typeParam.getKey())
 					.collect(Collectors.joining())
 				+ ">;";
 		} else if (isParameterizedType(t)) {
@@ -1463,6 +1463,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public ITypeBinding[] getTypeParameters() {
+		if (!isGenericType() || isTargettingPreGenerics()) {
+			return new ITypeBinding[0];
+		}
 		return getTypeParameters(this.type);
 	}
 
@@ -1620,11 +1623,12 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public boolean isGenericType() {
-		return isGenericType(this.type);
+		return isGenericType(this.type) && this.isGeneric;
 	}
 
 	public boolean isGenericType(Type t) {
-		return !t.isRaw() && t.isParameterized() && this.isGeneric;
+		return !t.isRaw() && t.isParameterized() &&
+				t.getTypeArguments().stream().anyMatch(typeArg -> typeArg.tsym != null && typeArg.tsym.owner == t.tsym && t.tsym != null);
 	}
 
 	@Override
