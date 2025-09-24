@@ -21,11 +21,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -249,7 +251,35 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			// and then allow looking up the binary types too
 			compilationUnits = new ICompilationUnit[] { mockUnit };
 		}
-		Map<ICompilationUnit, CompilationUnit> units = parse(compilationUnits, apiLevel, compilerOptions, true, flags, workingCopyOwner, monitor);
+
+		List<ICompilationUnit> filteredUnits = new ArrayList<>();
+		try {
+			Set<String> classFQNs = new HashSet<>();
+			for (ICompilationUnit unit : compilationUnits) {
+				if (unit.getModule() != null) {
+					filteredUnits.add(unit);
+					continue;
+				}
+				StringBuilder fqn = new StringBuilder();
+				if (unit.getPackageDeclarations() != null && unit.getPackageDeclarations().length > 0) {
+					fqn.append(unit.getPackageDeclarations()[0].getElementName().toString());
+					fqn.append(".");
+				}
+				// TODO: handle multiple top level type decls properly
+				if (unit.getTypes().length == 0) {
+					continue;
+				}
+				fqn.append(unit.getTypes()[0].getElementName());
+				if (!classFQNs.contains(fqn.toString())) {
+					filteredUnits.add(unit);
+					classFQNs.add(fqn.toString());
+				}
+			}
+		} catch (JavaModelException e) {
+			// TODO:
+			ILog.get().error("this approach won't work", e);
+		}
+		Map<ICompilationUnit, CompilationUnit> units = parse(filteredUnits.toArray(ICompilationUnit[]::new), apiLevel, compilerOptions, true, flags, workingCopyOwner, monitor);
 		if (requestor != null) {
 			final JavacBindingResolver[] bindingResolver = new JavacBindingResolver[1];
 			bindingResolver[0] = null;
@@ -292,7 +322,8 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			}
 
 			units.forEach((a,b) -> {
-				if (bindingResolver[0] == null && b.ast.getBindingResolver() instanceof JavacBindingResolver javacBindingResolver) {
+				if (b.ast.getBindingResolver() instanceof JavacBindingResolver javacBindingResolver
+						&& (bindingResolver[0] == null || javacBindingResolver != bindingResolver[0])) {
 					bindingResolver[0] = javacBindingResolver;
 				}
 				resolveBindings(b, bindingMap, apiLevel);
