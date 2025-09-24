@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.NullType;
 import javax.lang.model.type.TypeKind;
 import javax.tools.JavaFileObject;
@@ -106,7 +107,6 @@ import com.sun.tools.javac.code.Type.ErrorType;
 import com.sun.tools.javac.code.Type.IntersectionClassType;
 import com.sun.tools.javac.code.Type.JCNoType;
 import com.sun.tools.javac.code.Type.JCVoidType;
-import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.TypeVar;
 import com.sun.tools.javac.code.Type.WildcardType;
 import com.sun.tools.javac.code.TypeTag;
@@ -1053,12 +1053,8 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		Symbol parentSymbol = this.typeSymbol.owner;
 		do {
 			if (parentSymbol instanceof final MethodSymbol method) {
-				if (method.type instanceof Type.MethodType methodType) {
+				if (method.type instanceof ExecutableType methodType) {
 					return this.resolver.bindings.getMethodBinding(methodType, method, null, true, null);
-				}
-				if( method.type instanceof Type.ForAll faType && faType.qtype instanceof MethodType mtt) {
-					IMethodBinding found = this.resolver.bindings.getMethodBinding(mtt, method, null, true, null);
-					return found;
 				}
 				return null;
 			}

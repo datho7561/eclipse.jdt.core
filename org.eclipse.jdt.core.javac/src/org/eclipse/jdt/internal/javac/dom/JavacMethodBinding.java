@@ -137,10 +137,11 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 				Objects.equals(first.getReturnType(), second.getReturnType()) &&
 				Objects.equals(first.getThrownTypes(), second.getThrownTypes()) &&
 				Objects.equals(first.getReceiverType(), second.getReceiverType()) &&
+				Objects.equals(first.getTypeVariables(), second.getTypeVariables()) &&
 				Objects.equals(declaringType(first), declaringType(second)));
 	}
 	private static int hashCode(ExecutableType methodType) {
-		return Objects.hash(declaringType(methodType), methodType.getParameterTypes(), methodType.getReturnType(), methodType.getThrownTypes(), methodType.getReceiverType());
+		return Objects.hash(declaringType(methodType), methodType.getParameterTypes(), methodType.getReturnType(), methodType.getThrownTypes(), methodType.getReceiverType(), methodType.getTypeVariables());
 	}
 
 	@Override
@@ -465,10 +466,16 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 			builder.append(methodSymbol.getSimpleName());
 		}
 		if (methodSymbolNonNullType) { // initializer
-			if (methodType != null && !methodType.getTypeVariables().isEmpty()) {
+			if (methodType instanceof MethodType && !methodType.getTypeVariables().isEmpty()) { // parameterized
 				builder.append('<');
 				for (var typeParam : methodType.getTypeVariables()) {
 					JavacTypeBinding.getKey(builder, (Type)typeParam, false, true, useSlashes, resolver);
+				}
+				builder.append('>');
+			} else if (methodType instanceof ForAll && !methodType.getTypeVariables().isEmpty()) { // generic
+				builder.append('<');
+				for (var typeParam : methodType.getTypeVariables()) {
+					builder.append(JavacTypeVariableBinding.getTypeVariableKey((TypeVariableSymbol)typeParam.asElement(), resolver));
 				}
 				builder.append('>');
 			} else if (!methodSymbol.getTypeParameters().isEmpty()) {
@@ -639,6 +646,9 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 
 	@Override
 	public boolean isGenericMethod() {
+		if (this.methodType != null) {
+			return this.methodType instanceof ForAll;
+		}
 		if( methodHasGenerics() ) {
 			return true;
 		}
@@ -657,7 +667,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 
 	@Override
 	public boolean isParameterizedMethod() {
-		return !isRawMethod() && !methodHasGenerics() && methodMatchesParameterized();
+		return !isRawMethod() && !isGenericMethod() && this.methodSymbol != null && !this.methodSymbol.getTypeParameters().isEmpty();
 	}
 
 	private boolean parameterizedViaDeclaringClass() {
@@ -676,6 +686,9 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 
 	@Override
 	public boolean isRawMethod() {
+		if (isGenericMethod()) {
+			return false;
+		}
 		if( methodHasGenerics() )
 			return false;
 

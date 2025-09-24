@@ -26,6 +26,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 
 import org.eclipse.core.runtime.ILog;
@@ -163,7 +164,7 @@ public class JavacBindingResolver extends BindingResolver {
 		}
 		//
 		private Map<JavacMethodBinding, JavacMethodBinding> methodBindings = new HashMap<>();
-		public JavacMethodBinding getMethodBinding(MethodType methodType, MethodSymbol sym,
+		public JavacMethodBinding getMethodBinding(ExecutableType methodType, MethodSymbol sym,
 				com.sun.tools.javac.code.Type type,
 				boolean isSynthetic, boolean isDeclaration,
 				List<com.sun.tools.javac.code.Type> typeArgs) {
@@ -174,18 +175,18 @@ public class JavacBindingResolver extends BindingResolver {
 			}
 		}
 
-		public JavacMethodBinding getMethodBinding(MethodType methodType, MethodSymbol methodSymbol,
+		public JavacMethodBinding getMethodBinding(ExecutableType methodType, MethodSymbol methodSymbol,
 				com.sun.tools.javac.code.Type parentType, boolean isDeclaration,
 				List<com.sun.tools.javac.code.Type> resolvedTypeArgs) {
 			JavacMethodBinding newInstance = new JavacMethodBinding(methodType, methodSymbol, parentType, JavacBindingResolver.this, false, isDeclaration, resolvedTypeArgs) { };
 			return insertAndReturn(newInstance);
 		}
-		public JavacMethodBinding getSyntheticMethodBinding(MethodType methodType, MethodSymbol methodSymbol,
+		public JavacMethodBinding getSyntheticMethodBinding(ExecutableType methodType, MethodSymbol methodSymbol,
 				com.sun.tools.javac.code.Type parentType, List<com.sun.tools.javac.code.Type> resolvedTypeArgs) {
 			JavacMethodBinding newInstance = new JavacMethodBinding(methodType, methodSymbol, parentType, JavacBindingResolver.this, true, false, resolvedTypeArgs) { };
 			return insertAndReturn(newInstance);
 		}
-		public JavacMethodBinding getErrorMethodBinding(MethodType methodType, Symbol originatingSymbol, List<com.sun.tools.javac.code.Type> typeArgs) {
+		public JavacMethodBinding getErrorMethodBinding(ExecutableType methodType, Symbol originatingSymbol, List<com.sun.tools.javac.code.Type> typeArgs) {
 			JavacMethodBinding newInstance = new JavacErrorMethodBinding(originatingSymbol, methodType, JavacBindingResolver.this) { };
 			return insertAndReturn(newInstance);
 		}
@@ -396,8 +397,8 @@ public class JavacBindingResolver extends BindingResolver {
 			} else if (owner instanceof TypeSymbol typeSymbol) {
 				return getTypeBinding(isTypeOfType(type) ? type : typeSymbol.type);
 			} else if (owner instanceof final MethodSymbol other) {
-				var methodType = type instanceof com.sun.tools.javac.code.Type.MethodType aMethodType ? aMethodType :
-					owner.type != null ? owner.type.asMethodType() :
+				var methodType = type instanceof ExecutableType aMethodType ? aMethodType :
+					owner.type != null ? asExecutable(owner.type) :
 					null;
 				if (methodType != null) {
 					return getMethodBinding(methodType, other, null, false, null);
@@ -909,14 +910,11 @@ public class JavacBindingResolver extends BindingResolver {
 				original = et.getOriginalType();
 			}
 
-			if( original instanceof ForAll fa) {
-				original = fa.asMethodType();
-			}
-			if( original instanceof MethodType methodType) {
+			if( original instanceof ExecutableType methodType) {
 				if (sym.owner instanceof TypeSymbol typeSymbol) {
-					Iterator<Symbol> methods = typeSymbol.members().getSymbolsByName(sym.getSimpleName(), m -> m instanceof MethodSymbol && methodType.equals(m.type)).iterator();
+					Iterator<Symbol> methods = typeSymbol.members().getSymbolsByName(sym.getSimpleName(), m -> methodType.equals(m.type)).iterator();
 					if (methods.hasNext()) {
-						return this.bindings.getMethodBinding(methodType, (MethodSymbol)methods.next(), null, false, typeArgs);
+						return this.bindings.getMethodBinding(methodType instanceof ForAll forAll ? (ExecutableType)forAll.qtype : methodType, (MethodSymbol)methods.next(), null, false, typeArgs);
 					}
 				}
 				return this.bindings.getErrorMethodBinding(methodType, sym, typeArgs);
@@ -925,7 +923,7 @@ public class JavacBindingResolver extends BindingResolver {
 
 
 
-		if (type instanceof MethodType methodType && sym instanceof MethodSymbol methodSymbol) {
+		if (type instanceof ExecutableType methodType && sym instanceof MethodSymbol methodSymbol) {
 			com.sun.tools.javac.code.Type parentType = null;
 			if (methodSymbol.owner instanceof ClassSymbol ownerClass && isTypeOfType(ownerClass.type)) {
 				if (ownerClass.type.isParameterized()
@@ -938,22 +936,22 @@ public class JavacBindingResolver extends BindingResolver {
 			}
 			return this.bindings.getMethodBinding(methodType, methodSymbol, parentType, false, typeArgs);
 		}
-		if (type == null && sym instanceof MethodSymbol methodSym && methodSym.type instanceof ForAll methodTemplateType) {
-			// build type from template
-			Map<TypeVar, com.sun.tools.javac.code.Type> resolutionMapping = new HashMap<>();
-			var templateParameters = methodTemplateType.getTypeVariables();
-			if( typeArgs != null ) {
-				for (int i = 0; i < typeArgs.size() && i < templateParameters.size(); i++) {
-					resolutionMapping.put(templateParameters.get(i), typeArgs.get(i));
-				}
-			}
-			MethodType methodType = new MethodType(
-					methodTemplateType.asMethodType().getParameterTypes().map(t -> applyType(t, resolutionMapping)),
-					applyType(methodTemplateType.asMethodType().getReturnType(), resolutionMapping),
-					methodTemplateType.asMethodType().getThrownTypes().map(t -> applyType(t, resolutionMapping)),
-					methodTemplateType.tsym);
-			return this.bindings.getMethodBinding(methodType, methodSym, methodSym.owner.type, false, typeArgs);
-		}
+//		if (type == null && sym instanceof MethodSymbol methodSym && methodSym.type instanceof ForAll methodTemplateType) {
+//			// build type from template
+//			Map<TypeVar, com.sun.tools.javac.code.Type> resolutionMapping = new HashMap<>();
+//			var templateParameters = methodTemplateType.getTypeVariables();
+//			if( typeArgs != null ) {
+//				for (int i = 0; i < typeArgs.size() && i < templateParameters.size(); i++) {
+//					resolutionMapping.put(templateParameters.get(i), typeArgs.get(i));
+//				}
+//			}
+//			MethodType methodType = new MethodType(
+//					methodTemplateType.asMethodType().getParameterTypes().map(t -> applyType(t, resolutionMapping)),
+//					applyType(methodTemplateType.asMethodType().getReturnType(), resolutionMapping),
+//					methodTemplateType.asMethodType().getThrownTypes().map(t -> applyType(t, resolutionMapping)),
+//					methodTemplateType.tsym);
+//			return this.bindings.getMethodBinding(methodType, methodSym, methodSym.owner.type, false, typeArgs);
+//		}
 		if (type == null && sym != null && sym.type.isErroneous()
 			&& sym.owner.type instanceof ClassType classType) {
 			var parentTypeBinding = this.bindings.getTypeBinding(classType);
@@ -1042,10 +1040,10 @@ public class JavacBindingResolver extends BindingResolver {
 			}
 
 			if (methodDecl.type != null ) {
-				return this.bindings.getMethodBinding(methodDecl.type.asMethodType(), methodDecl.sym, null, true, null);
+				return this.bindings.getMethodBinding(asExecutable(methodDecl.type), methodDecl.sym, null, true, null);
 			}
 			if (methodDecl.sym instanceof MethodSymbol methodSymbol && methodSymbol.type != null) {
-				return this.bindings.getMethodBinding(methodSymbol.type.asMethodType(), methodSymbol, null, true, null);
+				return this.bindings.getMethodBinding(asExecutable(methodSymbol.type), methodSymbol, null, true, null);
 			}
 		}
 		return null;
@@ -1070,11 +1068,11 @@ public class JavacBindingResolver extends BindingResolver {
 		JCTree javacElement = this.converter.domToJavac.get(methodReference);
 		if (javacElement instanceof JCMemberReference memberRef && memberRef.sym instanceof MethodSymbol methodSymbol) {
 			List<com.sun.tools.javac.code.Type> typeArgs = streamOfTreeType(memberRef.getTypeArguments());
-			if (memberRef.referentType != null && memberRef.referentType instanceof MethodType) {
-				return this.bindings.getMethodBinding(memberRef.referentType.asMethodType(), methodSymbol, null, false, typeArgs);
+			if (memberRef.referentType != null && memberRef.referentType instanceof ExecutableType methodType) {
+				return this.bindings.getMethodBinding(methodType, methodSymbol, null, false, typeArgs);
 			}
-			if (methodSymbol.type instanceof MethodType) {
-				return this.bindings.getMethodBinding(methodSymbol.type.asMethodType(), methodSymbol, null, false, typeArgs);
+			if (methodSymbol.type instanceof ExecutableType methodType) {
+				return this.bindings.getMethodBinding(methodType, methodSymbol, null, false, typeArgs);
 			}
 		}
 		return null;
@@ -1090,7 +1088,7 @@ public class JavacBindingResolver extends BindingResolver {
 		JCTree javacElement = this.converter.domToJavac.get(member);
 		if (javacElement instanceof JCMethodDecl methodDecl) {
 			List<com.sun.tools.javac.code.Type> typeArgs = streamOfTreeType(methodDecl.getTypeParameters());
-			return this.bindings.getMethodBinding(methodDecl.type.asMethodType(), methodDecl.sym, null, true, typeArgs);
+			return this.bindings.getMethodBinding(asExecutable(methodDecl.type), methodDecl.sym, null, true, typeArgs);
 		}
 		return null;
 	}
@@ -1104,7 +1102,7 @@ public class JavacBindingResolver extends BindingResolver {
 		}
 		if(javacElement instanceof JCNewClass jcExpr && !jcExpr.constructor.type.isErroneous()) {
 			List<com.sun.tools.javac.code.Type> typeArgs = streamOfTreeType(jcExpr.typeargs);
-			return this.bindings.getMethodBinding(jcExpr.constructor.type.asMethodType(), (MethodSymbol)jcExpr.constructor, null, true, typeArgs);
+			return this.bindings.getMethodBinding(asExecutable(jcExpr.constructor.type), (MethodSymbol)jcExpr.constructor, null, true, typeArgs);
 		}
 		return null;
 	}
@@ -1121,14 +1119,14 @@ public class JavacBindingResolver extends BindingResolver {
 			typeArgs = javacMethodInvocation.getTypeArguments().stream().map(jcExpr -> jcExpr.type).toList();
 		}
 		if (javacElement instanceof JCIdent ident && ident.sym instanceof MethodSymbol methodSymbol) {
-			if (ident.type != null && (ident.type instanceof MethodType || ident.type instanceof ForAll)) {
-				return this.bindings.getMethodBinding(ident.type.asMethodType(), methodSymbol, null, false, typeArgs);
-			} else if (methodSymbol.asType() instanceof MethodType || methodSymbol.asType() instanceof ForAll) {
-				return this.bindings.getMethodBinding(methodSymbol.asType().asMethodType(), methodSymbol, null, false, typeArgs);
+			if (ident.type != null && ident.type instanceof ExecutableType methodType) {
+				return this.bindings.getMethodBinding(methodType, methodSymbol, null, false, typeArgs);
+			} else if (methodSymbol.asType() instanceof ExecutableType methodType) {
+				return this.bindings.getMethodBinding(methodType, methodSymbol, null, false, typeArgs);
 			}
 		}
 		if (javacElement instanceof JCFieldAccess fieldAccess && fieldAccess.sym instanceof MethodSymbol methodSymbol) {
-			return this.bindings.getMethodBinding(fieldAccess.type.asMethodType(), methodSymbol, null, false, typeArgs);
+			return this.bindings.getMethodBinding(asExecutable(fieldAccess.type), methodSymbol, null, false, typeArgs);
 		}
 		return null;
 	}
@@ -1141,11 +1139,11 @@ public class JavacBindingResolver extends BindingResolver {
 			javacElement = javacMethodInvocation.getMethodSelect();
 		}
 		if (javacElement instanceof JCIdent ident && ident.sym instanceof MethodSymbol methodSymbol) {
-			return this.bindings.getMethodBinding(ident.type.asMethodType(), methodSymbol, null, false, null);
+			return this.bindings.getMethodBinding(asExecutable(ident.type), methodSymbol, null, false, null);
 		}
 		if (javacElement instanceof JCFieldAccess fieldAccess && fieldAccess.sym instanceof MethodSymbol methodSymbol
 				&& fieldAccess.type != null /* when there are syntax errors */) {
-			return this.bindings.getMethodBinding(fieldAccess.type.asMethodType(), methodSymbol, null, false, null);
+			return this.bindings.getMethodBinding(asExecutable(fieldAccess.type), methodSymbol, null, false, null);
 		}
 		return null;
 	}
@@ -1594,10 +1592,17 @@ public class JavacBindingResolver extends BindingResolver {
 	private IMethodBinding resolveConstructorImpl(ClassInstanceCreation expression) {
 		resolve();
 		if (this.converter.domToJavac.get(expression) instanceof JCNewClass jcExpr) {
-			if (jcExpr.constructor != null && !jcExpr.constructorType.isErroneous()) {
-				List<com.sun.tools.javac.code.Type> javacTypeArgs =
-						jcExpr.getTypeArguments().stream().map(jc -> jc.type).toList();
-				return this.bindings.getMethodBinding(jcExpr.constructorType.asMethodType(), (MethodSymbol)jcExpr.constructor, jcExpr.type, false, javacTypeArgs);
+			if (jcExpr.constructor != null) {
+				if (!jcExpr.constructorType.isErroneous()) {
+					List<com.sun.tools.javac.code.Type> javacTypeArgs =
+							jcExpr.getTypeArguments().stream().map(jc -> jc.type).toList();
+					return this.bindings.getMethodBinding(asExecutable(jcExpr.constructorType), (MethodSymbol)jcExpr.constructor, jcExpr.type, false, javacTypeArgs);
+				}
+				if (jcExpr.constructor.type != null && !jcExpr.constructor.type.isErroneous()) {
+					List<com.sun.tools.javac.code.Type> javacTypeArgs =
+							jcExpr.getTypeArguments().stream().map(jc -> jc.type).toList();
+					return this.bindings.getMethodBinding(asExecutable(jcExpr.constructor.type), (MethodSymbol)jcExpr.constructor, jcExpr.type, false, javacTypeArgs);
+				}
 			}
 		}
 		ITypeBinding type = resolveType(expression.getType());
@@ -1663,11 +1668,11 @@ public class JavacBindingResolver extends BindingResolver {
 			javacElement = javacMethodInvocation.getMethodSelect();
 		}
 		if (javacElement instanceof JCIdent ident && ident.sym instanceof MethodSymbol methodSymbol) {
-			MethodType mt = ident.type != null && ident.type.getKind() == TypeKind.EXECUTABLE ? ident.type.asMethodType() : methodSymbol.type.asMethodType();
+			ExecutableType mt = asExecutable(ident.type != null && ident.type.getKind() == TypeKind.EXECUTABLE ? ident.type : methodSymbol.type);
 			return this.bindings.getMethodBinding(mt, methodSymbol, null, false, null);
 		}
 		if (javacElement instanceof JCFieldAccess fieldAccess && fieldAccess.sym instanceof MethodSymbol methodSymbol) {
-			return this.bindings.getMethodBinding(fieldAccess.type.asMethodType(), methodSymbol, null, false, null);
+			return this.bindings.getMethodBinding(asExecutable(fieldAccess.type), methodSymbol, null, false, null);
 		}
 		return null;
 	}
@@ -2197,5 +2202,9 @@ public class JavacBindingResolver extends BindingResolver {
 	}
 	public boolean isRecoveringBindings() {
 		return isRecoveringBindings;
+	}
+
+	public static ExecutableType asExecutable(com.sun.tools.javac.code.Type t) {
+		return t instanceof ExecutableType exec ? exec : t.asMethodType();
 	}
 }
