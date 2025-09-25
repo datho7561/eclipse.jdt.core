@@ -244,14 +244,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 	public void resolve(ICompilationUnit[] compilationUnits, String[] bindingKeys, ASTRequestor requestor, int apiLevel,
 			Map<String, String> compilerOptions, IJavaProject project, WorkingCopyOwner workingCopyOwner, int flags,
 			IProgressMonitor monitor) {
-		ICompilationUnit mockUnit = compilationUnits.length == 0 && bindingKeys.length > 0 ? createMockUnit(project, monitor) : null;
-		if (mockUnit != null) {
-			// if we're looking for a key in a binary type and have no actual unit,
-			// create a mock to activate some compilation task, enable a bindingResolver
-			// and then allow looking up the binary types too
-			compilationUnits = new ICompilationUnit[] { mockUnit };
-		}
-
 		List<ICompilationUnit> filteredUnits = new ArrayList<>();
 		try {
 			Set<String> classFQNs = new HashSet<>();
@@ -279,6 +271,14 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			// TODO:
 			ILog.get().error("this approach won't work", e);
 		}
+		ICompilationUnit mockUnit = filteredUnits.size() == 0 && bindingKeys.length > 0 ? createMockUnit(project, monitor) : null;
+		if (mockUnit != null) {
+			// if we're looking for a key in a binary type and have no actual unit,
+			// create a mock to activate some compilation task, enable a bindingResolver
+			// and then allow looking up the binary types too
+			filteredUnits.add(mockUnit);
+		}
+
 		Map<ICompilationUnit, CompilationUnit> units = parse(filteredUnits.toArray(ICompilationUnit[]::new), apiLevel, compilerOptions, true, flags, workingCopyOwner, monitor);
 		if (requestor != null) {
 			final JavacBindingResolver[] bindingResolver = new JavacBindingResolver[1];
