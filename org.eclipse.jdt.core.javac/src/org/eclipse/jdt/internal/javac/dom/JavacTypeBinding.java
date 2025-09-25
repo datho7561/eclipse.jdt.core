@@ -683,6 +683,12 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 				if (node != null && node.getParent() instanceof ClassInstanceCreation cic) {
 					nameAsString = nameAsString.replaceFirst("\\$([0-9]+)", "\\$" + cic.getType().getStartPosition());
 				}
+			} else if (!(typeToBuild.tsym.owner instanceof ClassSymbol)) {
+				// local type
+				ASTNode node = resolver.symbolToDeclaration.get(typeToBuild.tsym);
+				if (node instanceof TypeDeclaration localTypeDecl && localTypeDecl.getName() != null && localTypeDecl.getName().getStartPosition() >= 0) {
+					nameAsString = nameAsString.replaceFirst("\\$([0-9]+)", "\\$" + localTypeDecl.getName().getStartPosition());
+				}
 			}
 			currentTypeSignature += nameAsString;
 			builder.append(currentTypeSignature);
