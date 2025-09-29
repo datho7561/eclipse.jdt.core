@@ -30,6 +30,7 @@ import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.IWorkspace;
 import org.eclipse.core.resources.IWorkspaceDescription;
 import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -178,6 +179,34 @@ public class RegressionTests {
 		proj.build(IncrementalProjectBuilder.FULL_BUILD, null);
 		IFile file = proj.getFolder("src").getFile("Test.java");
 		assertArrayEquals(new IMarker[0], file.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_ZERO));
+	}
+
+	@Test
+	public void testReferenceSecondaryTypeNoClass() throws Exception {
+		IWorkspace workspace = ResourcesPlugin.getWorkspace();
+		boolean autoBuildBefore = workspace.isAutoBuilding();
+		try {
+			if (autoBuildBefore) {
+				var desc = workspace.getDescription();
+				desc.setAutoBuilding(false);
+				workspace.setDescription(desc);
+			}
+			IProject proj = importProject("projects/secondaryType");
+			IJavaProject javaProject = JavaCore.create(proj);
+			var unit = (ICompilationUnit)javaProject.findElement(Path.fromOSString("sec/Consumer.java"));
+			ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+			parser.setSource(unit);
+			parser.setProject(javaProject);
+			parser.setResolveBindings(true);
+			var ast = (org.eclipse.jdt.core.dom.CompilationUnit)parser.createAST(null);
+			assertTrue(Arrays.stream(ast.getProblems()).noneMatch(IProblem::isError));
+		} finally {
+			if (autoBuildBefore) {
+				var desc = workspace.getDescription();
+				desc.setAutoBuilding(true);
+				workspace.setDescription(desc);
+			}
+		}
 	}
 
 	static IProject importProject(String locationInBundle) throws URISyntaxException, IOException, CoreException {
