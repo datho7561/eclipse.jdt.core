@@ -74,6 +74,7 @@ import org.eclipse.jdt.internal.core.SearchableEnvironment;
 import org.eclipse.jdt.internal.core.dom.ICompilationUnitResolver;
 import org.eclipse.jdt.internal.core.util.BindingKeyParser;
 import org.eclipse.jdt.internal.javac.AccessRestrictionTreeScanner;
+import org.eclipse.jdt.internal.javac.AvoidNPEJavacTypes;
 import org.eclipse.jdt.internal.javac.CachingClassSymbolClassReader;
 import org.eclipse.jdt.internal.javac.CachingJDKPlatformArguments;
 import org.eclipse.jdt.internal.javac.CachingJarsJavaFileManager;
@@ -593,6 +594,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		CachingJarsJavaFileManager.preRegister(context);
 		CachingJDKPlatformArguments.preRegister(context);
 		CachingClassSymbolClassReader.preRegister(context);
+		AvoidNPEJavacTypes.preRegister(context);
 		Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit> result = new HashMap<>(sourceUnits.length, 1.f);
 		Map<JavaFileObject, CompilationUnit> filesToUnits = new HashMap<>();
 		final UnusedProblemFactory unusedProblemFactory = new UnusedProblemFactory(new DefaultProblemFactory(), compilerOptions);
