@@ -414,7 +414,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	private String computeKey() {
 		if (isWildcardType() && this.type instanceof WildcardType wildcardType) {
-			String key = getKey(wildcardType.bound.tsym.owner.asType(), wildcardType.bound.tsym.owner.flatName(), false, true);
+			String key = wildcardType.bound != null ?
+				getKey(wildcardType.bound.tsym.owner.asType(), wildcardType.bound.tsym.owner.flatName(), false, true) :
+				"";
 			key += "{" + getRank() + "}";
 			if (wildcardType.isUnbound()) {
 				// This is very wrong and is not parseable by KeyToSignature
