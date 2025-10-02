@@ -41,6 +41,7 @@ import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IType;
@@ -207,6 +208,14 @@ public class RegressionTests {
 				workspace.setDescription(desc);
 			}
 		}
+	}
+
+	@Test
+	public void testGetModelForTypeWithAnnotation() throws Exception {
+		IJavaProject javaProject = JavaCore.create(project);
+		IType type = javaProject.findType("test.FieldWithAnnotatedType");
+		IField theField = type.getFields()[0];
+		String s = theField.getTypeSignature();
 	}
 
 	static IProject importProject(String locationInBundle) throws URISyntaxException, IOException, CoreException {
