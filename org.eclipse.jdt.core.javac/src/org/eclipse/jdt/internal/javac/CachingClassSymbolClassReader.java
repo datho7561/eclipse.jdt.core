@@ -718,7 +718,17 @@ public class CachingClassSymbolClassReader extends ClassReader {
 			return null;
 		}
 		StringBuilder res = new StringBuilder();
+		boolean[] hasError = new boolean[] {false};
 		var generator = localTypes.new SignatureGenerator() {
+			@Override
+			public void assembleSig(Type type) {
+				if (type.getTag() == TypeTag.ERROR) {
+					hasError[0] = true;
+					return;
+				}
+				super.assembleSig(type);
+			}
+
 			@Override
 			protected void append(char ch) {
 				res.append(ch);
@@ -741,7 +751,7 @@ public class CachingClassSymbolClassReader extends ClassReader {
 			}
 		};
 		generator.assembleSig(type);
-		return res.toString();
+		return hasError[0] ? null : res.toString();
 	}
 
 	/// Workaround the fact that ClassReader.AnnotationCompleter is not visible
