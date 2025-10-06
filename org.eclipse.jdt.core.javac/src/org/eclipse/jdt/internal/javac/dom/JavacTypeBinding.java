@@ -870,11 +870,14 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	@Override
 	public int getRank() {
 		if (isWildcardType() && this.type instanceof WildcardType wildcardType) {
-			var params = getDeclaringClass().getTypeParameters();
-			for (int i = 0; i < params.length; i++) {
-				var typeParam = params[i];
-				if (typeParam instanceof JavacTypeBinding javacTypeParam && javacTypeParam.type == wildcardType.bound) {
-					return i;
+			ITypeBinding declaringClass = getDeclaringClass();
+			if (declaringClass != null) {
+				var params = declaringClass.getTypeParameters();
+				for (int i = 0; i < params.length; i++) {
+					var typeParam = params[i];
+					if (typeParam instanceof JavacTypeBinding javacTypeParam && javacTypeParam.type == wildcardType.bound) {
+						return i;
+					}
 				}
 			}
 		}
