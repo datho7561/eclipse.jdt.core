@@ -4595,9 +4595,7 @@ public class DOMCompletionEngine implements ICompletionEngine {
 			res.setParameterTypeNames(Stream.of(methodBinding.getParameterNames()).map(String::toCharArray).toArray(char[][]::new));
 			res.setSignature(SignatureUtils.getSignatureChar(methodBinding));
 			if (!methodBinding.getDeclaringClass().getQualifiedName().isEmpty()) {
-				res.setDeclarationSignature(Signature
-						.createTypeSignature(methodBinding.getDeclaringClass().getQualifiedName().toCharArray(), true)
-						.toCharArray());
+				res.setDeclarationSignature(SignatureUtils.getSignature(methodBinding.getDeclaringClass()).toCharArray());
 			}
 
 			if (Modifier.isStatic(methodBinding.getModifiers())

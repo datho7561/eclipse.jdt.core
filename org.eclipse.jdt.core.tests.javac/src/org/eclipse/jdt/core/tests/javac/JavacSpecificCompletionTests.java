@@ -631,7 +631,7 @@ public class JavacSpecificCompletionTests {
 				equals[METHOD_REF]{equals(), Ljava.lang.Object;, (Ljava.lang.Object;)Z, equals, [201, 201], 49}
 				getClass[METHOD_REF]{getClass(), Ljava.lang.Object;, ()Ljava.lang.Class<*>;, getClass, [201, 201], 49}
 				toString[METHOD_REF]{toString(), Ljava.lang.Object;, ()Ljava.lang.String;, toString, [201, 201], 49}
-				getValue[METHOD_REF]{getValue(), LHelloWorld.Inner;, ()I, getValue, [201, 201], 79}
+				getValue[METHOD_REF]{getValue(), LHelloWorld$Inner;, ()I, getValue, [201, 201], 79}
 				hashCode[METHOD_REF]{hashCode(), Ljava.lang.Object;, ()I, hashCode, [201, 201], 79}""", requestor.getResults());
 	}
 

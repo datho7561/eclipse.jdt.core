@@ -13,6 +13,7 @@ package org.eclipse.jdt.core.tests.javac;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,6 +23,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -39,17 +41,22 @@ import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.jdt.core.CompletionProposal;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.Name;
+import org.eclipse.jdt.core.dom.NodeFinder;
 import org.eclipse.jdt.internal.core.CompilationUnit;
 import org.junit.After;
 import org.junit.Assume;
@@ -184,14 +191,7 @@ public class RegressionTests {
 
 	@Test
 	public void testReferenceSecondaryTypeNoClass() throws Exception {
-		IWorkspace workspace = ResourcesPlugin.getWorkspace();
-		boolean autoBuildBefore = workspace.isAutoBuilding();
-		try {
-			if (autoBuildBefore) {
-				var desc = workspace.getDescription();
-				desc.setAutoBuilding(false);
-				workspace.setDescription(desc);
-			}
+		try (var _ = withoutAutoBuild()) {
 			IProject proj = importProject("projects/secondaryType");
 			IJavaProject javaProject = JavaCore.create(proj);
 			var unit = (ICompilationUnit)javaProject.findElement(Path.fromOSString("sec/Consumer.java"));
@@ -201,12 +201,42 @@ public class RegressionTests {
 			parser.setResolveBindings(true);
 			var ast = (org.eclipse.jdt.core.dom.CompilationUnit)parser.createAST(null);
 			assertTrue(Arrays.stream(ast.getProblems()).noneMatch(IProblem::isError));
-		} finally {
-			if (autoBuildBefore) {
-				var desc = workspace.getDescription();
-				desc.setAutoBuilding(true);
-				workspace.setDescription(desc);
-			}
+		}
+	}
+
+	@Test
+	public void testParameterCountWithCapture() throws Exception {
+		try (var _ = withoutAutoBuild()) {
+			var javaProject = JavaCore.create(project);
+			var unit = (ICompilationUnit)javaProject.findElement(Path.fromOSString("test/Captured.java"));
+			ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+			parser.setSource(unit);
+			parser.setProject(javaProject);
+			parser.setResolveBindings(true);
+			var ast = (org.eclipse.jdt.core.dom.CompilationUnit)parser.createAST(null);
+			int index = unit.getBuffer().getContents().indexOf(".COMPLETE_HERE");
+			var node = NodeFinder.perform(ast, index - 3, 0);
+			var type = ((Name)node).resolveTypeBinding();
+			var domMethod = Arrays.stream(type.getDeclaredMethods())
+				.filter(m -> "map".equals(m.getName()))
+				.filter(m -> {
+					var params = m.getParameterTypes();
+					return params.length == 1 && Function.class.getSimpleName().equals(params[0].getErasure().getName());
+				}).findAny()
+				.orElse(null);
+			var modelMethod = (IMethod)domMethod.getJavaElement();
+			String signature = modelMethod.getSignature();
+			assertEquals(1, Signature.getParameterCount(signature));
+			Object[] mapProposal = new Object[] { null };
+			unit.codeComplete(index + 1, new org.eclipse.jdt.core.CompletionRequestor() {
+				@Override
+				public void accept(CompletionProposal proposal) {
+					if (proposal.getCompletion() != null && new String(proposal.getCompletion()).equals("map")) {
+						mapProposal[0] = proposal;
+					}
+				}
+			});
+			assertNotNull(mapProposal[0]);
 		}
 	}
 
@@ -244,6 +274,22 @@ public class RegressionTests {
 				m -> targetSeverities.isEmpty() || targetSeverities.contains(m.getAttribute(IMarker.SEVERITY, 0)))
 				.collect(Collectors.toList());
 		return markers;
+	}
+
+	public static AutoCloseable withoutAutoBuild() throws CoreException {
+		IWorkspace workspace = ResourcesPlugin.getWorkspace();
+		boolean autoBuildBefore = workspace.isAutoBuilding();
+		if (autoBuildBefore) {
+			var desc = workspace.getDescription();
+			desc.setAutoBuilding(false);
+			workspace.setDescription(desc);
+			return () -> {
+				var newDesc = workspace.getDescription();
+				newDesc.setAutoBuilding(true);
+				workspace.setDescription(newDesc);
+			};
+		}
+		return () -> {};
 	}
 
 	protected void waitForBackgroundJobs() throws Exception {
