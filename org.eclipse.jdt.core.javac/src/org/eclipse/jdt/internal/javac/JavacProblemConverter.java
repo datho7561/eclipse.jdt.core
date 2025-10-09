@@ -748,6 +748,7 @@ public class JavacProblemConverter {
 			case "compiler.err.ref.ambiguous" -> convertAmbiguous(diagnostic);
 			case "compiler.err.illegal.initializer.for.type" -> IProblem.TypeMismatch;
 			case "compiler.err.prob.found.req" -> convertTypeMismatch(diagnostic);
+			case "compiler.err.incomparable.types" -> IProblem.IncompatibleTypesInEqualityOperator;
 			case "compiler.err.invalid.meth.decl.ret.type.req" -> IProblem.MissingReturnType;
 			case "compiler.err.abstract.meth.cant.have.body" -> IProblem.BodyForAbstractMethod;
 			case "compiler.err.unreported.exception.need.to.catch.or.throw" -> IProblem.UnhandledException;
@@ -1038,6 +1039,7 @@ public class JavacProblemConverter {
 			case "compiler.err.switch.expression.empty" -> IProblem.SwitchExpressionsYieldMissingDefaultCase;
 			case "compiler.err.switch.mixing.case.types" -> IProblem.SwitchPreviewMixedCase;
 			case "compiler.err.return.outside.switch.expression" -> IProblem.SwitchExpressionsReturnWithinSwitchExpression;
+			case "compiler.err.switch.case.unexpected.statement" -> IProblem.Syntax;
 			case "compiler.err.cant.apply.diamond.1" ->
 				diagnostic.getMessage(Locale.ENGLISH).contains("explicit type parameters")
 					? IProblem.CannotUseDiamondWithExplicitTypeArguments
