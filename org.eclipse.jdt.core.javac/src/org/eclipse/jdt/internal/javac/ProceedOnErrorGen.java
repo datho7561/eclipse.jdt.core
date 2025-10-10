@@ -71,6 +71,8 @@ public class ProceedOnErrorGen extends Gen {
 	@Override
 	public boolean genClass(Env<AttrContext> env, JCClassDecl cdef) {
 		try {
+			// avoid possible NPE for incorrect trees
+			//cdef.defs.removeIf(JCErroneous.class::isInstance);
 			return super.genClass(env, cdef) && verifyClassComplete(cdef.sym);
 		} catch (Exception ex) {
 			return false;
