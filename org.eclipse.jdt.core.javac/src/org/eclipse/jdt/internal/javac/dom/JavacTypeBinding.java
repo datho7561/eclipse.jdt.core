@@ -1470,7 +1470,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			return getErasure();
 		}
 		// TODO handle wildcard types here? test0114
-		return this.typeSymbol.type == this.type
+		return this.typeSymbol == null || this.typeSymbol.type == this.type
 			? this
 			: this.resolver.bindings.getTypeBinding(this.typeSymbol.type, null, this.typeSymbol, true);
 	}
