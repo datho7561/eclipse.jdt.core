@@ -411,7 +411,12 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 			return;
 		}
 		char[][] fqnChar = Stream.of(fqn.split("\\.")).map(String::toCharArray).toArray(char[][]::new);
-		NameEnvironmentAnswer ans = nameEnvironment.findType(fqnChar);
+		NameEnvironmentAnswer ans = null;
+		try {
+			ans = nameEnvironment.findType(fqnChar);
+		} catch (org.eclipse.jdt.internal.compiler.problem.AbortCompilation e) {
+			// Can happen easily, ignore
+		}
 		if (ans != null && ans.getAccessRestriction() != null) {
 			AccessRestriction accessRestriction = ans.getAccessRestriction();
 			if (accessRestriction.getProblemId() == IProblem.ForbiddenReference || !this.isWarningSuppressed) {
