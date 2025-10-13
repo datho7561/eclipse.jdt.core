@@ -501,13 +501,17 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 			} else if (!(methodSymbol.getReturnType() instanceof JCNoType)) {
 				JavacTypeBinding.getKey(builder, methodSymbol.getReturnType(), false, true, true, resolver);
 			}
-			if (methodType != null) {
+			if (methodType != null && methodType.getThrownTypes() != null) {
 				methodType.getThrownTypes().stream()
 					.map(Type.class::cast)
-					.map(resolver.bindings::getTypeBinding)
-					.map(JavacTypeBinding::getKey)
-					.map(k -> "|" + k)  // key wants "|", signature wants "^"
-					.forEach(builder::append);
+					.forEach(param -> {
+						builder.append("|");  // key wants "|", signature wants "^"
+						try {
+							JavacTypeBinding.getKey(builder, param, false, true, true, resolver);
+						} catch (BindingKeyException ex) {
+							ILog.get().error(ex.getMessage(), ex);
+						}
+					});
 			}
 		}
 	}
