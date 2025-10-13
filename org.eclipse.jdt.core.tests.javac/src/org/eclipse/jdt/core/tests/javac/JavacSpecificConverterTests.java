@@ -22,7 +22,9 @@ import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.Javadoc;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.ModuleDeclaration;
+import org.eclipse.jdt.core.dom.NodeFinder;
 import org.eclipse.jdt.core.dom.TagElement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.junit.Test;
@@ -72,5 +74,23 @@ public class JavacSpecificConverterTests {
 				return false;
 			}
 		});
+	}
+
+	@Test
+	public void testInfiniteLoopParameterizedMethodKey() throws Exception {
+		ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+		String source = """
+				public class A {
+					public <E extends Exception> void m() throws E {
+					}
+				}
+				""";
+		parser.setSource(source.toCharArray());
+		parser.setUnitName("A.java");
+		parser.setEnvironment(null, null, null, true);
+		parser.setResolveBindings(true);
+		ASTNode node = parser.createAST(new NullProgressMonitor());
+		MethodDeclaration meth = (MethodDeclaration) NodeFinder.perform(node, source.indexOf("m()"), 0).getParent();
+		assertEquals("LA;.m<E:Ljava/lang/Exception;>()V|TE;", meth.resolveBinding().getKey());
 	}
 }
