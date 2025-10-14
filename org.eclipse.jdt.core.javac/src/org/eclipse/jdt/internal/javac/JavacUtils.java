@@ -184,7 +184,7 @@ public class JavacUtils {
 		if (limitModules != null && !limitModules.isBlank()) {
 			options.put(Option.LIMIT_MODULES, limitModules);
 		}
-		if (!options.isSet(Option.RELEASE) && javaProject instanceof JavaProject) {
+		if (!options.isSet(Option.RELEASE) && javaProject instanceof JavaProject jp && jp.exists()) {
 			try {
 				IType systemType = javaProject.findType(Object.class.getName());
 				if (systemType != null) {
@@ -262,7 +262,7 @@ public class JavacUtils {
 
 			if (output != null) {
 				fileManager.setLocation(StandardLocation.CLASS_OUTPUT, List.of(ensureDirExists(output)));
-			} else if (javaProject.getProject() != null) {
+			} else if (javaProject.getProject() != null && javaProject.getProject().exists()) {
 				IResource member = javaProject.getProject().getParent().findMember(javaProject.getOutputLocation());
 				if( member != null ) {
 					File f = member.getLocation().toFile();
@@ -308,7 +308,7 @@ public class JavacUtils {
 						.toList());
 				classpathEnabled = true;
 			}
-			if (!classpathEnabled) {
+			if (!classpathEnabled && javaProject.exists()) {
 //				Set<JavaProject> moduleProjects = Set.of();
 				IClasspathEntry[] expandedClasspath = javaProject.getExpandedClasspath();
 				Set<JavaProject> moduleProjects = Stream.of(expandedClasspath)
@@ -395,6 +395,9 @@ public class JavacUtils {
 	private static Collection<File> classpathEntriesToFiles(JavaProject project, boolean source, Predicate<IClasspathEntry> select) {
 		try {
 			LinkedHashSet<File> res = new LinkedHashSet<>();
+			if( !project.exists())
+				return res;
+
 			ArrayList<IClasspathEntry> seen = new ArrayList<>();
 			if (project.getModuleDescription() == null) {
 				IPath outputLocation = project.getOutputLocation();
@@ -484,7 +487,7 @@ public class JavacUtils {
 	}
 
 	public static boolean isTest(IJavaProject project, org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] units) {
-		if (units == null || project == null || project.getResource() == null) {
+		if (units == null || project == null || project.getResource() == null || !project.exists()) {
 			return false;
 		}
 		Set<IPath> testFolders = new HashSet<>();
