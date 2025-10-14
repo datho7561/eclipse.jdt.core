@@ -203,9 +203,9 @@ public class CachingClassSymbolClassReader extends ClassReader {
 						// as per https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-2.html#jvms-2.3.4
 						o = Integer.valueOf(b.booleanValue() ? 1 : 0);
 					} else if (TypeKind.CHAR == primitive.getKind() && o instanceof Character c) {
-						o = Integer.valueOf((int)c.charValue());
+						o = Integer.valueOf(c.charValue());
 					} else if (TypeKind.BYTE == primitive.getKind() && o instanceof Byte b) {
-						o = Integer.valueOf((int)b.byteValue());
+						o = Integer.valueOf(b.byteValue());
 					}
 				}
 				res.setData(o);
