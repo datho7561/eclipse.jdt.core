@@ -254,7 +254,7 @@ public class RegressionTests {
 		IJavaProject javaProject = JavaCore.create(project);
 		IType type = javaProject.findType("test.FieldWithAnnotatedType");
 		IField theField = type.getFields()[0];
-		String s = theField.getTypeSignature();
+		theField.getTypeSignature(); // test no exception is thrown
 	}
 
 	static IProject importProject(String locationInBundle) throws URISyntaxException, IOException, CoreException {
