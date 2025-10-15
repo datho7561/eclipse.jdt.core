@@ -456,10 +456,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		return b3;
 	}
 	public String getKeyWithPossibleGenerics(Type t, TypeSymbol s) {
-		return getKeyWithPossibleGenerics(t, s, tb -> tb != null ? tb.getKey() : KeyUtils.OBJECT_KEY);
-	}
-	private String getKeyWithPossibleGenerics(Type t, TypeSymbol s, Function<ITypeBinding, String> parameterizedCallback) {
-		return getKeyWithPossibleGenerics(t, s, parameterizedCallback, false);
+		return getKeyWithPossibleGenerics(t, s, tb -> tb != null ? tb.getKey() : KeyUtils.OBJECT_KEY, true);
 	}
 	private String getKeyWithPossibleGenerics(Type t, TypeSymbol s, Function<ITypeBinding, String> parameterizedCallback, boolean useSlashes) {
 		if( !this.isGeneric && this instanceof JavacTypeVariableBinding jctvb ) {
@@ -734,19 +731,8 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			if ((b1 || b2) && includeParameters) {
 				builder.append('<');
 				for (var typeArgument : typeToBuild.getTypeArguments()) {
-					StringBuilder tmp = new StringBuilder();
-					getKey(tmp, typeArgument, typeArgument.asElement().flatName().toString(),
+					getKey(builder, typeArgument, typeArgument.asElement().flatName().toString(),
 							false, includeParameters, useSlashes, resolver);
-					String paramType = tmp.toString();
-					if( paramType.startsWith("+") && !paramType.equals("+Ljava/lang/Object;")) {
-						builder.append("!");
-						builder.append(currentTypeSignature);
-						builder.append(";{1}");// TODO
-						builder.append(paramType);
-						builder.append("1;");// TODO
-					} else {
-						builder.append(paramType);
-					}
 				}
 				builder.append('>');
 			}

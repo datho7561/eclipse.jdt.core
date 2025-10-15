@@ -93,4 +93,22 @@ public class JavacSpecificConverterTests {
 		MethodDeclaration meth = (MethodDeclaration) NodeFinder.perform(node, source.indexOf("m()"), 0).getParent();
 		assertEquals("LA;.m<E:Ljava/lang/Exception;>()V|TE;", meth.resolveBinding().getKey());
 	}
+
+	@Test
+	public void testInvalidSignatureDeepTypeParameter() throws Exception {
+		ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+		String source = """
+				interface A {
+					java.util.List<java.util.List<? extends String>> m();
+				}
+				""";
+		parser.setSource(source.toCharArray());
+		parser.setUnitName("A.java");
+		parser.setEnvironment(null, null, null, true);
+		parser.setResolveBindings(true);
+		ASTNode node = parser.createAST(new NullProgressMonitor());
+		MethodDeclaration meth = (MethodDeclaration) NodeFinder.perform(node, source.indexOf("m()"), 0).getParent();
+		assertEquals("LA;.m()Ljava/util/List<Ljava/util/List<+Ljava/lang/String;>;>;", meth.resolveBinding().getKey());
+	}
+
 }
