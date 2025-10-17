@@ -905,6 +905,7 @@ public class JavacBindingResolver extends BindingResolver {
 
 		// Let's handle error types first
 		if (type instanceof ErrorType errorType ) {
+			var parentType = javacElement instanceof JCFieldAccess fa ? fa.getExpression() != null ? fa.getExpression().type : null : null;
 			com.sun.tools.javac.code.Type original = errorType;
 			while(original instanceof ErrorType et && original != et.getOriginalType()) {
 				original = et.getOriginalType();
@@ -914,7 +915,9 @@ public class JavacBindingResolver extends BindingResolver {
 				if (sym.owner instanceof TypeSymbol typeSymbol) {
 					Iterator<Symbol> methods = typeSymbol.members().getSymbolsByName(sym.getSimpleName(), m -> methodType.equals(m.type)).iterator();
 					if (methods.hasNext()) {
-						return this.bindings.getMethodBinding(methodType instanceof ForAll forAll ? (ExecutableType)forAll.qtype : methodType, (MethodSymbol)methods.next(), null, false, typeArgs);
+						ExecutableType mt2 = methodType instanceof ForAll forAll ? (ExecutableType)forAll.qtype : methodType;
+						MethodSymbol ms = (MethodSymbol)methods.next();
+						return this.bindings.getMethodBinding(mt2, ms, parentType, false, typeArgs);
 					}
 				}
 				return this.bindings.getErrorMethodBinding(methodType, sym, typeArgs);
