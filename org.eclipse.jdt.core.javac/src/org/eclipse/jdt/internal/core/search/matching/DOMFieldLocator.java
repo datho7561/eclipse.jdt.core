@@ -269,12 +269,18 @@ public class DOMFieldLocator extends DOMPatternLocator {
 			}
 			if (variableBinding.isField()) {
 				boolean mightMatch = false;
-				if( this.fieldLocator.pattern.findDeclarations && node instanceof VariableDeclarationFragment vdf && vdf.getParent() instanceof FieldDeclaration) {
+				if( !mightMatch && this.fieldLocator.pattern.findDeclarations && node instanceof VariableDeclarationFragment vdf && vdf.getParent() instanceof FieldDeclaration) {
 					mightMatch = true;
 				}
-				if(this.fieldLocator.pattern.readAccess && this.fieldLocator.pattern.writeAccess) {
+				if( !mightMatch && this.fieldLocator.pattern.findDeclarations && node instanceof EnumConstantDeclaration ecd && ecd.getParent() instanceof EnumDeclaration) {
 					mightMatch = true;
-				} else {
+				}
+
+				if(!mightMatch && this.fieldLocator.pattern.readAccess && this.fieldLocator.pattern.writeAccess) {
+					mightMatch = true;
+				}
+
+				if(!mightMatch) {
 					ASTNode working = node instanceof Name n && n.getParent() instanceof QualifiedName qn ? qn : node;
 					boolean isQualified = working == node ? false : true;
 					boolean qualifierRead = working instanceof QualifiedName qn ? qn.getQualifier() == node : false;
@@ -317,6 +323,8 @@ public class DOMFieldLocator extends DOMPatternLocator {
 						mightMatch |= working.getParent() instanceof FieldAccess;
 					}
 				}
+
+
 				if( mightMatch ) {
 					return toResponse(this.matchField(variableBinding, true));
 				}
