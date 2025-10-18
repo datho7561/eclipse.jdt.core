@@ -53,6 +53,7 @@ import com.sun.tools.javac.code.SymbolMetadata;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ClassType;
+import com.sun.tools.javac.code.Type.IntersectionClassType;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.TypeVar;
 import com.sun.tools.javac.code.TypeTag;
@@ -135,7 +136,7 @@ public class CachingClassSymbolClassReader extends ClassReader {
 		context.put(classReaderKey, (Context.Factory<ClassReader>)c -> new CachingClassSymbolClassReader(c));
 	}
 
-	private final Types localTypes;
+	public final Types localTypes;
 	private final Names localNames;
 	private final Symtab localSyms;
 	private final StoringQueriesAnnotate localAnnotate;
@@ -220,7 +221,7 @@ public class CachingClassSymbolClassReader extends ClassReader {
 		private final long flags;
 		private final Name name;
 		private final String lowerBound;
-		private final String upperBound;
+		private final List<String> upperBounds;
 		private final SymbolMetadataTemplate metadata;
 		private final List<CompoundTemplate> toAnnotate;
 
@@ -228,7 +229,18 @@ public class CachingClassSymbolClassReader extends ClassReader {
 			this.flags = base.flags_field;
 			this.name = base.name;
 			this.lowerBound = base.type instanceof TypeVar typeVar && typeVar.getLowerBound() != null && typeVar.getLowerBound() != reader.localSyms.botType ? reader.typeToSig(typeVar.getLowerBound()) : null;
-			this.upperBound = base.type instanceof TypeVar typeVar && typeVar.getUpperBound() != null && typeVar.getUpperBound() != reader.localSyms.botType ? reader.typeToSig(typeVar.getUpperBound()) : null;
+			List<String> upperBounds = List.of();
+			if (base.type instanceof TypeVar typeVar && typeVar.getUpperBound() != null && typeVar.getUpperBound() != reader.localSyms.botType ) {
+				if (typeVar.getUpperBound() instanceof IntersectionClassType intersection) {
+					upperBounds = intersection.getBounds().stream()
+							.map(Type.class::cast)
+							.map(reader::typeToSig)
+							.toList();
+				} else {
+					upperBounds = List.of(reader.typeToSig(typeVar.getUpperBound()));
+				}
+			}
+			this.upperBounds = upperBounds;
 			this.metadata = new SymbolMetadataTemplate(base.getMetadata(), reader);
 			this.toAnnotate = reader.localAnnotate.annotationsFor(base);
 		}
@@ -237,8 +249,14 @@ public class CachingClassSymbolClassReader extends ClassReader {
 			tvar.tsym.flags_field = this.flags;
 			// this line needs to be before resolving upper bound as upper bound can reference this type
 			reader.typevars.enter(tvar.tsym);
-			if (this.upperBound != null) {
-				tvar.setUpperBound(reader.sigToType(this.upperBound));
+			Type upperBound = null;
+			if (this.upperBounds.size() == 1) {
+				upperBound = reader.sigToType(this.upperBounds.getFirst());
+			} else if (this.upperBounds.size() > 1) {
+				upperBound = reader.localTypes.makeIntersectionType(com.sun.tools.javac.util.List.from(this.upperBounds.stream().map(reader::sigToType).toList()));
+			}
+			if (upperBound != null) {
+				tvar.setUpperBound(upperBound);
 			}
 			this.metadata.applyTo(tvar.tsym, reader);
 			reader.localAnnotate.normal(tvar.tsym, this.toAnnotate);
