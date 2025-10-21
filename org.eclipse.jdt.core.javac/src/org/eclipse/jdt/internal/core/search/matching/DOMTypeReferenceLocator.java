@@ -861,7 +861,8 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 		ITypeBinding[] bindingArgs = typeBinding.getTypeArguments();
 		ITypeBinding[] bindingParams = typeBinding.getTypeParameters();
 		int bindingTypeArgsLength = bindingArgs == null ? -1 : bindingArgs.length;
-		// Compare arguments lengths
+		int bindingTypeParamsLength = bindingParams == null ? -1 : bindingParams.length;
+		// First try with args if it's parameterized
 		if (patternTypeArgsLength == bindingTypeArgsLength) {
 			Type t = node instanceof Type ? (Type)node : null;
 			if( t != null ) {
@@ -886,26 +887,32 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 				return ERASURE_MATCH;
 			}
 			return ACCURATE_MATCH;
-		} else {
-			if (patternTypeArgsLength==0) {
-				return ACCURATE_MATCH;
-			} else if (bindingTypeArgsLength==0) {
-				// If this is an import, we have to treat it differently
+		}
 
-				// pattern looking for args but binding has none.
-//				ITypeBinding decl = typeBinding.getTypeDeclaration();
-//				ITypeBinding[] declArgs = decl.getTypeArguments();
-//				ITypeBinding[] declParams = decl.getTypeParameters();
-				// raw binding is always compatible
-				if( patternIsEquivMatch && bindingIsRaw) {
-					return ACCURATE_MATCH;
-				}
-				if( !bindingIsRaw && !(patternIsEquivMatch || patternIsErasureMatch)) {
-					return IMPOSSIBLE_MATCH;
-				}
-				if( !patternIsEquivMatch || bindingIsRaw)
-					return ACCURATE_MATCH;
+		if (patternTypeArgsLength != 0 && bindingIsGeneric && patternTypeArgsLength != bindingTypeParamsLength) {
+			return IMPOSSIBLE_MATCH;
+		}
+
+		if (patternTypeArgsLength==0) {
+			return ACCURATE_MATCH;
+		}
+
+		if (bindingTypeArgsLength==0) {
+			// If this is an import, we have to treat it differently
+
+			// pattern looking for args but binding has none.
+//			ITypeBinding decl = typeBinding.getTypeDeclaration();
+//			ITypeBinding[] declArgs = decl.getTypeArguments();
+//			ITypeBinding[] declParams = decl.getTypeParameters();
+			// raw binding is always compatible
+			if( patternIsEquivMatch && bindingIsRaw) {
+				return ACCURATE_MATCH;
 			}
+			if( !bindingIsRaw && !(patternIsEquivMatch || patternIsErasureMatch)) {
+				return IMPOSSIBLE_MATCH;
+			}
+			if( !patternIsEquivMatch || bindingIsRaw)
+				return ACCURATE_MATCH;
 		}
 		return IMPOSSIBLE_MATCH;
 	}
