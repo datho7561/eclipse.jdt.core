@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -1385,7 +1386,22 @@ public class JavacBindingResolver extends BindingResolver {
 			return this.bindings.getTypeBinding(variableDecl.type);
 		}
 		if (tree instanceof JCFieldAccess fieldAccess) {
-			return this.getFieldAccessBinding(fieldAccess);
+			IBinding b = this.getFieldAccessBinding(fieldAccess);
+			if( b != null ) {
+				return b;
+			}
+			if( fieldAccess.selected instanceof JCIdent jcid && jcid.sym == null && jcid.type == null) {
+				// Some bug at connecting this to an existing class in this same file?
+				IBinding bind = this.searchForFieldAccessBindingViaTopLevelType(jcid, name);
+				if( bind != null ) {
+					return bind;
+				}
+				bind = this.searchForFieldAccessBindingViaFieldsInCurrentType(jcid, name);
+				if( bind != null ) {
+					return bind;
+				}
+			}
+			return null;
 		}
 		if (tree instanceof JCMethodInvocation methodInvocation && methodInvocation.meth.type != null) {
 			return this.bindings.getBinding(((JCFieldAccess)methodInvocation.meth).sym, methodInvocation.meth.type);
@@ -1405,9 +1421,78 @@ public class JavacBindingResolver extends BindingResolver {
 		if (tree instanceof JCModuleDecl variableDecl && variableDecl.sym != null && variableDecl.sym.type instanceof ModuleType) {
 			return this.bindings.getModuleBinding(variableDecl);
 		}
+
+		if (name.getParent() instanceof Name parentName && tree instanceof JCIdent ident && ident.sym == null) {
+			tree = this.converter.domToJavac.get(parentName);
+			IBinding b3 = resolveNameToJavac(parentName, tree);
+			return b3;
+		}
 		return null;
 	}
 
+	private IBinding searchForFieldAccessBindingViaTopLevelType(JCIdent jcid, Name name) {
+		CompilationUnit cu = null;
+		ASTNode working = name;
+		while( working != null && !(working instanceof CompilationUnit) ) {
+			working = working.getParent();
+		}
+		if( working != null ) {
+			cu = (CompilationUnit)working;
+			List<AbstractTypeDeclaration> types = cu.types();
+			for( AbstractTypeDeclaration t1 : types ) {
+				if( t1.getName().toString().equals(jcid.getName().toString())) {
+					IBinding t1Binding = t1.resolveBinding();
+					if( t1Binding != null && t1Binding instanceof ITypeBinding t2) {
+						IVariableBinding[] fields = t2.getDeclaredFields();
+						for( IVariableBinding vb1 : fields ) {
+							if( vb1.getName().toString().equals(name.toString())) {
+								// we found a match
+								return vb1;
+							}
+						}
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	private IBinding searchForFieldAccessBindingViaFieldsInCurrentType(JCIdent jcid, Name name) {
+		String soughtName = name instanceof SimpleName sn ? sn.toString() :
+			name instanceof QualifiedName qn ? qn.getName().toString() : null;
+		if( soughtName == null )
+			return null;
+
+		AbstractTypeDeclaration type = null;
+		ASTNode working = name;
+		while( working != null && !(working instanceof AbstractTypeDeclaration) ) {
+			working = working.getParent();
+		}
+		if( working != null ) {
+			type = (AbstractTypeDeclaration)working;
+			List<FieldDeclaration> fields = type.bodyDeclarations().stream().filter(x -> x instanceof FieldDeclaration).toList();
+			for( FieldDeclaration t1 : fields ) {
+				Optional frags = t1.fragments().stream().filter(
+						x -> ((VariableDeclarationFragment)x).getName().toString().equals(jcid.getName().toString()))
+					.findFirst();
+				if( frags.isPresent() ) {
+					VariableDeclarationFragment frag = (VariableDeclarationFragment)frags.get();
+					IBinding t1Binding = t1.getType().resolveBinding();
+					if( t1Binding != null && t1Binding instanceof ITypeBinding t2) {
+						IVariableBinding[] referencedTypeFields = t2.getDeclaredFields();
+						for( IVariableBinding vb1 : referencedTypeFields ) {
+							if( vb1.getName().toString().equals(soughtName)) {
+								// we found a match
+								return vb1;
+							}
+						}
+					}
+					System.out.println("Break");
+				}
+			}
+		}
+		return null;
+	}
 	@Override
 	IVariableBinding resolveVariable(EnumConstantDeclaration enumConstant) {
 		resolve();

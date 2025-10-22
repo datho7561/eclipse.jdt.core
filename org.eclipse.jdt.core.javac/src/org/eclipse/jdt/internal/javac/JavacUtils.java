@@ -36,6 +36,7 @@ import javax.tools.StandardLocation;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
@@ -43,6 +44,7 @@ import org.eclipse.jdt.core.IClasspathAttribute;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IModuleDescription;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
@@ -399,7 +401,13 @@ public class JavacUtils {
 //				return res;
 
 			ArrayList<IClasspathEntry> seen = new ArrayList<>();
-			if (project.getModuleDescription() == null) {
+			IModuleDescription modDesc = null;
+			try {
+				modDesc = project.getModuleDescription();
+			} catch(CoreException ce) {
+				// ignore
+			}
+			if (modDesc == null) {
 				IPath outputLocation = project.getOutputLocation();
 				if (outputLocation != null) {
 					addPath(project, outputLocation, res);
