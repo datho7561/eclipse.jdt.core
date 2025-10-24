@@ -549,8 +549,11 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 					}
 					// Then return not possible so it doesn't get added again
 					return toResponse(IMPOSSIBLE_MATCH);
+				} else {
+					// accuracy is -1, which means idkwtf
+
+					return toResponse(INACCURATE_MATCH);
 				}
-				return toResponse(INACCURATE_MATCH);
 			} else if (toAnalyse instanceof QualifiedName qn) {
 				if (this.matchLocator.pattern instanceof TypeReferencePattern typePattern) {
 					if (!new String(typePattern.qualification).equals(qn.getQualifier().toString())) {

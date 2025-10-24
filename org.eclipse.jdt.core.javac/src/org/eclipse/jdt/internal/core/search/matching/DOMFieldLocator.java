@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.core.search.matching;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -268,69 +269,89 @@ public class DOMFieldLocator extends DOMPatternLocator {
 				return toResponse(level);
 			}
 			if (variableBinding.isField()) {
-				boolean mightMatch = false;
-				if( !mightMatch && this.fieldLocator.pattern.findDeclarations && node instanceof VariableDeclarationFragment vdf && vdf.getParent() instanceof FieldDeclaration) {
-					mightMatch = true;
-				}
-				if( !mightMatch && this.fieldLocator.pattern.findDeclarations && node instanceof EnumConstantDeclaration ecd && ecd.getParent() instanceof EnumDeclaration) {
-					mightMatch = true;
-				}
+				boolean mm1 = this.fieldLocator.pattern.findDeclarations && node instanceof VariableDeclarationFragment vdf && vdf.getParent() instanceof FieldDeclaration;
+				boolean mm2 = this.fieldLocator.pattern.findDeclarations && node instanceof EnumConstantDeclaration ecd && ecd.getParent() instanceof EnumDeclaration;
+				boolean mm3 = this.fieldLocator.pattern.readAccess && this.fieldLocator.pattern.writeAccess;
 
-				if(!mightMatch && this.fieldLocator.pattern.readAccess && this.fieldLocator.pattern.writeAccess) {
-					mightMatch = true;
-				}
-
+				boolean mightMatch = mm1 || mm2 || mm3;
 				if(!mightMatch) {
-					ASTNode working = node instanceof Name n && n.getParent() instanceof QualifiedName qn ? qn : node;
-					boolean isQualified = working == node ? false : true;
-					boolean qualifierRead = working instanceof QualifiedName qn ? qn.getQualifier() == node : false;
-					boolean isAssignNonQualified = working instanceof Name n
-							&& n.getParent() instanceof Assignment assign
-							&& assign.getLeftHandSide() == n;
-					boolean isAssignQualified = working instanceof Name n && n.getParent() instanceof FieldAccess fa
-							&& fa.getName() == n
-							&& fa.getParent() instanceof Assignment assign
-							&& assign.getLeftHandSide() == fa;
-					boolean isAssign = isAssignNonQualified || isAssignQualified;
-					boolean isPrefix = working instanceof Name n &&
-							(n.getParent() instanceof PrefixExpression pe
-								&& pe.getOperand() == n);
-					boolean isPostfix = working instanceof Name n &&
-							(n.getParent() instanceof PostfixExpression pe
-									&& pe.getOperand() == n);
-
-					boolean isWrite = (isAssign && !qualifierRead) || isPrefix || isPostfix;
-					boolean isRead = !isAssign || qualifierRead || isPrefix || isPostfix;
-
-					if( this.fieldLocator.pattern.writeAccess && isWrite) {
-						mightMatch = true;
-					}
-					// Otherwise it's likely a read
-					if( this.fieldLocator.pattern.readAccess && isRead ) {
-						mightMatch = true;
-					}
-
-					if( (this.fieldLocator.pattern.fineGrain & IJavaSearchConstants.QUALIFIED_REFERENCE) != 0 ) {
-						mightMatch |= isQualified;
-					}
-					if( (this.fieldLocator.pattern.fineGrain & IJavaSearchConstants.IMPLICIT_THIS_REFERENCE) != 0 ) {
-						mightMatch |= !isQualified;
-					}
-					if( (this.fieldLocator.pattern.fineGrain & IJavaSearchConstants.SUPER_REFERENCE) != 0 ) {
-						mightMatch |= working.getParent() instanceof SuperFieldAccess;
-					}
-					if( (this.fieldLocator.pattern.fineGrain & IJavaSearchConstants.THIS_REFERENCE) != 0 ) {
-						mightMatch |= working.getParent() instanceof FieldAccess;
-					}
+					mightMatch = mightMatchFromNode(node);
 				}
-
-
 				if( mightMatch ) {
 					return toResponse(this.matchField(variableBinding, true));
+				}
+			} else {
+				// Here we likely have a reference, not declaration, to some
+				// local variable
+				if( this.fieldLocator.pattern.findReferences ) {
+					if (!this.fieldLocator.matchesName(this.fieldLocator.pattern.name,
+							variableBinding.getName().toCharArray())) {
+						return toResponse(PatternLocator.IMPOSSIBLE_MATCH);
+					}
+					ITypeBinding t1 = variableBinding.getType();
+					if( t1 != null ) {
+						IVariableBinding[] allFields = t1.getDeclaredFields();
+						IVariableBinding b1 = Arrays.asList(allFields).stream().filter(x -> x.getName().equals(node.toString())).findFirst().orElse(null);
+						if( b1 != null ) {
+							boolean mightMatch = mightMatchFromNode(node);
+							if( mightMatch ) {
+								ASTNode working = node instanceof Name n && n.getParent() instanceof QualifiedName qn ? qn : node;
+								boolean qualifierRead = working instanceof QualifiedName qn ? qn.getQualifier() == node : false;
+								if( !qualifierRead )
+									return toResponse(this.matchField(b1, true));
+							}
+						}
+					}
 				}
 			}
 		}
 		return toResponse(PatternLocator.IMPOSSIBLE_MATCH);
+	}
+
+	private boolean mightMatchFromNode(ASTNode node) {
+		ASTNode working = node instanceof Name n && n.getParent() instanceof QualifiedName qn ? qn : node;
+		boolean isQualified = working == node ? false : true;
+		boolean qualifierRead = working instanceof QualifiedName qn ? qn.getQualifier() == node : false;
+		boolean isAssignNonQualified = working instanceof Name n
+				&& n.getParent() instanceof Assignment assign
+				&& assign.getLeftHandSide() == n;
+		boolean isAssignQualified = working instanceof Name n && n.getParent() instanceof FieldAccess fa
+				&& fa.getName() == n
+				&& fa.getParent() instanceof Assignment assign
+				&& assign.getLeftHandSide() == fa;
+		boolean isAssign = isAssignNonQualified || isAssignQualified;
+		boolean isPrefix = working instanceof Name n &&
+				(n.getParent() instanceof PrefixExpression pe
+					&& pe.getOperand() == n);
+		boolean isPostfix = working instanceof Name n &&
+				(n.getParent() instanceof PostfixExpression pe
+						&& pe.getOperand() == n);
+
+		boolean isWrite = (isAssign && !qualifierRead) || isPrefix || isPostfix;
+		boolean isRead = !isAssign || qualifierRead || isPrefix || isPostfix;
+
+		boolean mightMatch = false;
+		if( this.fieldLocator.pattern.writeAccess && isWrite) {
+			mightMatch = true;
+		}
+		// Otherwise it's likely a read
+		if( this.fieldLocator.pattern.readAccess && isRead ) {
+			mightMatch = true;
+		}
+
+		if( (this.fieldLocator.pattern.fineGrain & IJavaSearchConstants.QUALIFIED_REFERENCE) != 0 ) {
+			mightMatch |= isQualified;
+		}
+		if( (this.fieldLocator.pattern.fineGrain & IJavaSearchConstants.IMPLICIT_THIS_REFERENCE) != 0 ) {
+			mightMatch |= !isQualified;
+		}
+		if( (this.fieldLocator.pattern.fineGrain & IJavaSearchConstants.SUPER_REFERENCE) != 0 ) {
+			mightMatch |= working.getParent() instanceof SuperFieldAccess;
+		}
+		if( (this.fieldLocator.pattern.fineGrain & IJavaSearchConstants.THIS_REFERENCE) != 0 ) {
+			mightMatch |= working.getParent() instanceof FieldAccess;
+		}
+		return mightMatch;
 	}
 
 	@Override
