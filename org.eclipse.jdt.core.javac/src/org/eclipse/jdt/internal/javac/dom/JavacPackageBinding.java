@@ -24,6 +24,7 @@ import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IModuleBinding;
 import org.eclipse.jdt.core.dom.IPackageBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 
 import com.sun.tools.javac.code.Symbol.PackageSymbol;
@@ -181,6 +182,11 @@ public abstract class JavacPackageBinding implements IPackageBinding {
 	private String getQualifiedNameInternal() {
 		return this.getPackageSymbol() != null ? this.getPackageSymbol().getQualifiedName().toString() :
 			this.nameString;
+	}
+
+	@Override
+	public ITypeBinding findTypeBinding(String name) {
+		return null;
 	}
 
 	@Override
