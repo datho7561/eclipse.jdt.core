@@ -199,6 +199,9 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 				if (pm != null) {
 					for (int i = 0; i < possibleMatches.length; i++) {
 						if (possibleMatches[i] == pm) {
+//							if( pm.resource.toString().endsWith("src/p/X.java")) {
+//								System.out.println("Break");
+//							}
 							IProblem[] problems = ast.getProblems();
 							domUnits[i] = ast;
 							nonNullDomIndexes.add(i);

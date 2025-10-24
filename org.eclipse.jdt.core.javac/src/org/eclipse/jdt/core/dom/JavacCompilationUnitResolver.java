@@ -791,15 +791,22 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				javac.genEndPos = false;
 				javac.lineDebugInfo = false;
 			}
+			boolean forceProblemDetection = (flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) != 0;
+			boolean forceBindingRecovery = (flags & ICompilationUnit.ENABLE_BINDINGS_RECOVERY) != 0;
 			var aptPath = fileManager.getLocation(StandardLocation.ANNOTATION_PROCESSOR_PATH);
-			if ((flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) != 0
-				|| (aptPath != null && aptPath.iterator().hasNext())) {
-				try {
-					task.analyze();
-				} catch (Throwable t) {
-					ILog.get().error("Error while analyzing", t);
-					// continue anyway
-				}
+			boolean aptPathForceAnalyze = (aptPath != null && aptPath.iterator().hasNext());
+			if (forceProblemDetection || forceBindingRecovery || aptPathForceAnalyze ) {
+				// Let's run analyze until it finishes without error
+				Throwable caught = null;
+				do {
+					caught = null;
+					try {
+						task.analyze();
+					} catch (Throwable t) {
+						caught = t;
+						ILog.get().error("Error while analyzing", t);
+					}
+				} while(caught != null);
 			}
 
 			Throwable cachedThrown = null;
