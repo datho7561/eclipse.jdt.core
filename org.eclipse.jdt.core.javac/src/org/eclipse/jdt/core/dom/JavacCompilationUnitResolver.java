@@ -109,11 +109,10 @@ import com.sun.tools.javac.parser.Scanner;
 import com.sun.tools.javac.parser.ScannerFactory;
 import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
 import com.sun.tools.javac.parser.Tokens.TokenKind;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.JCBlock;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.tree.JCTree.Visitor;
+import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
+import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Context.Key;
 import com.sun.tools.javac.util.DiagnosticSource;
@@ -697,18 +696,15 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				if (focalPoint < 0) {
 					return;
 				}
-				compilationUnit.accept(new Visitor() {
+				compilationUnit.accept(new TreeScanner() {
 					@Override
-					public void visitBlock(JCBlock block) {
-						if (focalPoint < block.getStartPosition()
-							|| block.getEndPosition(compilationUnit.endPositions) < focalPoint) {
-							block.stats.clear();
+					public void visitMethodDef(JCMethodDecl method) {
+						if (method.body != null &&
+							(focalPoint < method.getStartPosition()
+							|| method.getEndPosition(compilationUnit.endPositions) < focalPoint)) {
+							method.body.stats = com.sun.tools.javac.util.List.nil();
 							// add a `throw new RuntimeException();` ?
 ;						}
-					}
-					@Override
-					public void visitTree(JCTree that) {
-						// nothing special
 					}
 				});
 			}
