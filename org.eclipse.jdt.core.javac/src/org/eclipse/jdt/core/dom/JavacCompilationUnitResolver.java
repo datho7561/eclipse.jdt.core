@@ -109,6 +109,7 @@ import com.sun.tools.javac.parser.Scanner;
 import com.sun.tools.javac.parser.ScannerFactory;
 import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
 import com.sun.tools.javac.parser.Tokens.TokenKind;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
@@ -116,6 +117,7 @@ import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Context.Key;
 import com.sun.tools.javac.util.DiagnosticSource;
+import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Options;
@@ -705,6 +707,22 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 							method.body.stats = com.sun.tools.javac.util.List.nil();
 							// add a `throw new RuntimeException();` ?
 ;						}
+					}
+					@Override
+					public void scan(JCTree tree) {
+						var comment = compilationUnit.docComments.getComment(tree);
+						if (comment != null &&
+							(focalPoint < comment.getPos().getStartPosition() || comment.getPos().getEndPosition(compilationUnit.endPositions) < focalPoint)) {
+							compilationUnit.docComments.putComment(tree, new com.sun.tools.javac.parser.Tokens.Comment() {
+								@Override public boolean isDeprecated() { return comment.isDeprecated(); }
+								@Override public CommentStyle getStyle() { return comment.getStyle(); }
+								@Override public int getSourcePos(int index) { return comment.getSourcePos(index); }
+								@Override public DiagnosticPosition getPos() { return comment.getPos(); }
+								@Override public com.sun.tools.javac.parser.Tokens.Comment stripIndent() { return comment.stripIndent(); }
+								@Override public String getText() { return ""; }
+							});
+						}
+						super.scan(tree);
 					}
 				});
 			}
