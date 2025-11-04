@@ -565,7 +565,7 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 			return toResponse(INACCURATE_MATCH);
 		}
 		if (binding instanceof ITypeBinding typeBinding) {
-			if (!DOMTypeDeclarationLocator.matchSearchForTypeSuffix(typeBinding, this.locator.pattern.typeSuffix)) {
+			if (!hasImportAncestor(node) && !DOMTypeDeclarationLocator.matchSearchForTypeSuffix(typeBinding, this.locator.pattern.typeSuffix)) {
 				return toResponse(IMPOSSIBLE_MATCH);
 			}
 			if( hasImportAncestor(node) && !this.locator.isDeclarationOfReferencedTypesPattern) {
