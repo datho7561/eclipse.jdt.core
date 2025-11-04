@@ -1074,7 +1074,9 @@ class JavacConverter {
 	private VariableDeclaration convertVariableDeclarationForLambda(JCVariableDecl javac) {
 		if(javac.getType() == null && javac.getStartPosition() == javac.getPreferredPosition() /* check no "var" */) {
 			return createVariableDeclarationFragment(javac);
-		} else if (javac.getType() != null && javac.getType().getPreferredPosition() == Position.NOPOS) { // "virtual" node added for analysis, not part of AST
+		} else if (javac.getType() != null &&
+				(javac.getType().getPreferredPosition() == Position.NOPOS
+				|| javac.getType().getEndPosition(javacCompilationUnit.endPositions) == Position.NOPOS)) { // "virtual" node added for analysis, not part of AST
 			return createVariableDeclarationFragment(javac);
 		} else {
 			return convertVariableDeclaration(javac);
