@@ -4812,8 +4812,184 @@ public class DOMCompletionEngine implements ICompletionEngine {
 		return false;
 	}
 
-	private CompletionProposal toProposal(TypeNameMatch typeNameMatch) {
-		return toProposal(typeNameMatch.getType(), typeNameMatch.getAccessibility(), typeNameMatch.getModifiers());
+	/// In this method, we avoid retrieving the IType, because most of IType methods require re-parsing the source
+	private CompletionProposal toProposal(TypeNameMatch type) {
+		DOMInternalCompletionProposal res = createProposal(CompletionProposal.TYPE_REF);
+		char[] simpleName = type.getSimpleTypeName().toCharArray();
+		char[] signature = Signature.createTypeSignature(type.getFullyQualifiedName(), true).toCharArray();
+		res.setSignature(signature);
+		res.setDeclarationSignature(type.getPackageName().toCharArray());
+
+		// set completion, considering nested types
+		StringBuilder completion = new StringBuilder();
+		if (completionContext.getCurrentTypeBinding() != null
+				&& completionContext.getCurrentTypeBinding().getJavaElement() != null
+				&& type.getFullyQualifiedName().equals(((IType)completionContext.getCurrentTypeBinding().getJavaElement()).getFullyQualifiedName())) {
+			completion.insert(0, type.getSimpleTypeName());
+		} else {
+			completion.insert(0, type.getFullyQualifiedName());
+//			ASTNode currentName = this.toComplete instanceof QualifiedName qn && FAKE_IDENTIFIER.equals(qn.getName().toString()) ? qn.getName() : this.toComplete instanceof Name ? this.toComplete : null;
+//			while (cursor instanceof IType currentType && (completion.isEmpty() || currentName == null || (!Objects.equals(currentName.toString(), currentType.getElementName()) && !Objects.equals(currentName.toString(), currentType.getFullyQualifiedName())))) {
+//				if (!completion.isEmpty()) {
+//					completion.insert(0, '.');
+//				}
+//				completion.insert(0, cursor.getElementName());
+//				cursor = cursor.getParent();
+//				if (currentName != null && currentName.getLocationInParent() == QualifiedName.NAME_PROPERTY) {
+//					currentName = ((QualifiedName)currentName.getParent()).getQualifier();
+//				} else {
+//					currentName = null;
+//				}
+//			}
+		}
+
+		boolean isMember = false;
+//		try {
+//			isMember = type.isMember();
+//		} catch (JavaModelException e) {
+//			// do nothing
+//		}
+		Javadoc javadoc = (Javadoc) DOMCompletionUtils.findParent(this.toComplete, new int[] { ASTNode.JAVADOC });
+		ASTNode parentTypeDeclaration = DOMCompletionUtils.findParentTypeDeclaration(this.toComplete);
+		if (parentTypeDeclaration != null || javadoc != null) {
+			String fullTypeName = type.getFullyQualifiedName();
+			boolean inImports = ((List<ImportDeclaration>)this.unit.imports()).stream().anyMatch(improt -> fullTypeName.equals(improt.getName().toString()));
+			boolean isInJavaLang = type.getFullyQualifiedName().startsWith("java.lang.") && !type.getFullyQualifiedName().substring("java.lang.".length()).contains(".");
+			IPackageBinding currentPackageBinding = completionContext.getCurrentTypeBinding() == null ? null : completionContext.getCurrentTypeBinding().getPackage();
+			// TODO: what about qualified references to inner classes?
+			if (!type.getPackageName().isEmpty() && (currentPackageBinding == null
+					|| (this.qualifiedPrefix.startsWith(type.getPackageName()) && javadoc != null)
+					|| ((!type.getPackageName().equals(currentPackageBinding.getName()) || (isMember && this.qualifiedPrefix.equals(this.prefix) && !type.getFullyQualifiedName().equals(this.modelUnit)))
+							&& !type.getPackageName().equals("java.lang"))) && !inImports && !isInJavaLang) { //$NON-NLS-1$
+				completion.insert(0, '.');
+				completion.insert(0, type.getPackageName());
+			}
+		} else {
+			// in imports list
+			int lastOffset = this.toComplete.getStartPosition() + this.toComplete.getLength();
+			if (lastOffset >= this.textContent.length() || this.textContent.charAt(lastOffset) != ';') {
+				completion.append(';');
+			}
+		}
+		res.setCompletion(completion.toString().toCharArray());
+
+		if (this.toComplete instanceof FieldAccess || this.prefix.isEmpty()) {
+			res.setReplaceRange(this.offset, this.offset);
+		} else if (this.completionContext.isInJavadoc()) {
+			if (this.qualifiedPrefix.equals(this.prefix)) {
+				setRange(res);
+			} else {
+				setQualifiedRange(res);
+			}
+		} else if (this.toComplete instanceof MarkerAnnotation) {
+			res.setReplaceRange(this.toComplete.getStartPosition() + 1, this.toComplete.getStartPosition() + this.toComplete.getLength());
+		} else if (this.toComplete instanceof SimpleName currentName && FAKE_IDENTIFIER.equals(currentName.toString())) {
+			res.setReplaceRange(this.offset, this.offset);
+		} else if (this.toComplete instanceof SimpleName) {
+			res.setReplaceRange(this.toComplete.getStartPosition(), this.toComplete.getStartPosition() + this.toComplete.getLength());
+		} else if (this.toComplete instanceof ThisExpression thisExpression
+				&& thisExpression.getQualifier() != null
+				&& this.offset > (thisExpression.getQualifier().getStartPosition() + thisExpression.getQualifier().getLength())) {
+			setRange(res);
+		} else if (this.toComplete instanceof MethodRefParameter || this.toComplete instanceof MethodRef || this.toComplete instanceof TextElement){
+			if (this.qualifiedPrefix.equals(this.prefix)) {
+				setRange(res);
+			} else {
+				setQualifiedRange(res);
+			}
+		} else {
+			res.setReplaceRange(this.toComplete.getStartPosition(), this.offset);
+		}
+		res.setFlags(type.getModifiers());
+		if (this.toComplete instanceof SimpleName) {
+			res.setTokenRange(this.toComplete.getStartPosition(), this.toComplete.getStartPosition() + this.toComplete.getLength());
+		} else if (this.toComplete instanceof MarkerAnnotation) {
+			res.setTokenRange(this.offset, this.offset);
+		} else {
+			setTokenRange(res);
+		}
+		boolean nodeInImports = DOMCompletionUtils.findParent(this.toComplete, new int[] { ASTNode.IMPORT_DECLARATION }) != null;
+
+		boolean fromCurrentCU = ((List<AbstractTypeDeclaration>)this.unit.types()).stream().map(decl -> decl.resolveBinding().getQualifiedName()).anyMatch(qualified -> type.getFullyQualifiedName().equals(qualified));
+		boolean inSamePackage = false;
+		boolean typeIsImported = ((List<ImportDeclaration>)this.unit.imports()).stream().anyMatch(importDecl -> {
+			return importDecl.getName().toString().equals(type.getFullyQualifiedName());
+		});
+		PackageDeclaration packageDeclaration = this.unit.getPackage();
+		if (packageDeclaration != null) {
+			inSamePackage = packageDeclaration.getName().toString().equals(type.getPackageName());
+		} else {
+			inSamePackage = type.getPackageName().isEmpty();
+		}
+		boolean isExceptionExpected = DOMCompletionUtils.findParent(this.toComplete, new int[] { ASTNode.CATCH_CLAUSE }) != null //
+				|| (DOMCompletionUtils.findParent(this.toComplete, new int[] { ASTNode.TAG_ELEMENT }) instanceof TagElement te && TagElement.TAG_THROWS.equals(te.getTagName()));
+		int relevance = RelevanceConstants.R_DEFAULT;
+		relevance += RelevanceConstants.R_RESOLVED;
+//		relevance += RelevanceUtils.computeRelevanceForInteresting(type, expectedTypes);
+		relevance += RelevanceUtils.computeRelevanceForRestrictions(type.getAccessibility(), this.settings);
+//		relevance += (isExceptionExpected && DOMCompletionUtils.findInSupers(type, "Ljava/lang/Exception;", this.workingCopyOwner, this.typeHierarchyCache) ? RelevanceConstants.R_EXCEPTION : 0);
+//		relevance += RelevanceUtils.computeRelevanceForInheritance(this.qualifyingType, type);
+		relevance += RelevanceUtils.computeRelevanceForQualification(!"java.lang".equals(type.getPackageName()) && !nodeInImports && !fromCurrentCU && !inSamePackage && !typeIsImported, this.prefix, this.qualifiedPrefix);
+		if (type.getFullyQualifiedName().startsWith("java.")
+				&& !(DOMCompletionUtils.findParent(this.toComplete, new int[] { ASTNode.CATCH_CLAUSE }) != null && this.prefix.isEmpty())) {
+			relevance += RelevanceConstants.R_JAVA_LIBRARY;
+		}
+		// sometimes subclasses and superclasses are considered, sometimes they aren't
+//		relevance += (isExceptionExpected ? RelevanceUtils.computeRelevanceForExpectingType(type, expectedTypes, this.workingCopyOwner, this.typeHierarchyCache) : RelevanceUtils.simpleComputeRelevanceForExpectingType(type, expectedTypes));
+		relevance += RelevanceUtils.computeRelevanceForCaseMatching(this.prefix.toCharArray(), simpleName, this.assistOptions);
+		try {
+			if ((type.getModifiers() & Flags.AccAnnotation) != 0) {
+				ASTNode current = this.toComplete;
+				while (current instanceof Name) {
+					current = current.getParent();
+				}
+				if (current instanceof Annotation annotation) {
+					relevance += RelevanceConstants.R_ANNOTATION;
+					IAnnotation targetAnnotation = null; //type.getAnnotation(Target.class.getName());
+					if (targetAnnotation == null || !targetAnnotation.exists()) {
+						// On Javadoc for @Target: "If a Target meta-annotation is not present on an annotation type declaration,
+						// the declared type may be used on any program element."
+						relevance += RelevanceConstants.R_TARGET;
+					} else {
+						var memberValuePairs = targetAnnotation.getMemberValuePairs();
+						if (memberValuePairs != null) {
+							if (Stream.of(memberValuePairs)
+								.filter(memberValue -> "value".equals(memberValue.getMemberName()))
+								.map(IMemberValuePair::getValue)
+								.anyMatch(target -> matchHostType(annotation.getParent(), target))) {
+								relevance += RelevanceConstants.R_TARGET;
+							}
+						}
+					}
+				}
+			}
+		} catch (JavaModelException ex) {
+			ILog.get().warn(ex.getMessage(), ex);
+		}
+		if (isInExtendsOrImplements(this.toComplete) != null) {
+			if ((type.getModifiers() & Flags.AccAnnotation) != 0) {
+				relevance += RelevanceConstants.R_ANNOTATION;
+			}
+			if ((type.getModifiers() & Flags.AccInterface) != 0) {
+				relevance += RelevanceConstants.R_INTERFACE;
+			} else {
+				relevance += RelevanceConstants.R_CLASS;
+			}
+		}
+		res.setRelevance(relevance);
+		if (parentTypeDeclaration != null) {
+			String packageName = ""; //$NON-NLS-1$
+			PackageDeclaration packageDecl = this.unit.getPackage();
+			if (packageDecl != null) {
+				packageName = packageDecl.getName().toString();
+			}
+			if (!packageName.equals(type.getPackageName()) && !new String(res.getCompletion()).equals(type.getFullyQualifiedName())) {
+				// propose importing the type
+				res.setRequiredProposals(new CompletionProposal[] { toImportProposal(simpleName, signature, type.getPackageName().toCharArray()) });
+			}
+		}
+		return res;
+
 	}
 
 	private CompletionProposal toProposal(IType type, int access) {
@@ -4965,7 +5141,7 @@ public class DOMCompletionEngine implements ICompletionEngine {
 		relevance += (isExceptionExpected ? RelevanceUtils.computeRelevanceForExpectingType(type, expectedTypes, this.workingCopyOwner, this.typeHierarchyCache) : RelevanceUtils.simpleComputeRelevanceForExpectingType(type, expectedTypes));
 		relevance += RelevanceUtils.computeRelevanceForCaseMatching(this.prefix.toCharArray(), simpleName, this.assistOptions);
 		try {
-			if (type.isAnnotation()) {
+			if ((type.getFlags() & Flags.AccAnnotation) != 0) {
 				ASTNode current = this.toComplete;
 				while (current instanceof Name) {
 					current = current.getParent();
