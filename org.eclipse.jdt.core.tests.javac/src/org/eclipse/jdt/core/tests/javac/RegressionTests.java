@@ -193,6 +193,7 @@ public class RegressionTests {
 		try (var _ = withoutAutoBuild()) {
 			IProject proj = importProject("projects/secondaryType");
 			IJavaProject javaProject = JavaCore.create(proj);
+			waitForBackgroundJobs();
 			var unit = (ICompilationUnit)javaProject.findElement(Path.fromOSString("sec/Consumer.java"));
 			ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
 			parser.setSource(unit);

@@ -28,6 +28,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -55,12 +56,12 @@ import org.eclipse.core.runtime.IProduct;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.content.IContentType;
+import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
-import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.Signature;
@@ -69,9 +70,13 @@ import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.compiler.InvalidInputException;
+import org.eclipse.jdt.core.search.SearchEngine;
+import org.eclipse.jdt.core.search.SearchParticipant;
+import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.internal.compiler.batch.FileSystem.Classpath;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.env.AccessRestriction;
+import org.eclipse.jdt.internal.compiler.env.AccessRuleSet;
 import org.eclipse.jdt.internal.compiler.env.IBinaryType;
 import org.eclipse.jdt.internal.compiler.env.IDependent;
 import org.eclipse.jdt.internal.compiler.env.INameEnvironment;
@@ -87,6 +92,11 @@ import org.eclipse.jdt.internal.core.JavaModelManager;
 import org.eclipse.jdt.internal.core.JavaProject;
 import org.eclipse.jdt.internal.core.SearchableEnvironment;
 import org.eclipse.jdt.internal.core.dom.ICompilationUnitResolver;
+import org.eclipse.jdt.internal.core.index.IndexLocation;
+import org.eclipse.jdt.internal.core.search.IndexQueryRequestor;
+import org.eclipse.jdt.internal.core.search.JavaSearchParticipant;
+import org.eclipse.jdt.internal.core.search.matching.MatchLocator;
+import org.eclipse.jdt.internal.core.search.matching.SecondaryTypeDeclarationPattern;
 import org.eclipse.jdt.internal.core.util.BindingKeyParser;
 import org.eclipse.jdt.internal.javac.AccessRestrictionTreeScanner;
 import org.eclipse.jdt.internal.javac.AvoidNPEJavacTypes;
@@ -1190,8 +1200,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			boolean hasBuildState = jp1.hasBuildState();
 			if( !hasBuildState ) {
 				try {
-					List<ICompilationUnit> dualTypes = listCompilationUnitsWithMultipleTopLevelClasses(jp1, packages);
-					for(ICompilationUnit u : dualTypes) {
+					for(ICompilationUnit u : listCompilationUnitsWithMultipleTopLevelClasses(jp1, packages)) {
 						if(u instanceof IDependent ud) {
 							JavaFileObject jfo = cuToFileObject(javaProject, ud.getFileName(), u, fileManager, null);
 							if( jfo != null ) {
@@ -1218,9 +1227,9 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		return listCompilationUnitsWithMultipleTopLevelClasses_locks.contains(p);
 	}
 
-	private static List<ICompilationUnit> listCompilationUnitsWithMultipleTopLevelClasses(IJavaProject javaProject, List<String> packages) throws JavaModelException {
+	private static Set<ICompilationUnit> listCompilationUnitsWithMultipleTopLevelClasses(IJavaProject javaProject, List<String> packages) throws JavaModelException {
 		if( listCompilationUnitsWithMultipleTopLevelClasses_isLocked(javaProject.getProject())) {
-			return new ArrayList<>();
+			return Set.of();
 		}
 
 		listCompilationUnitsWithMultipleTopLevelClasses_addLock(javaProject.getProject());
@@ -1231,36 +1240,60 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 	}
 
-	private static List<ICompilationUnit> listCompilationUnitsWithMultipleTopLevelClasses_impl(IJavaProject javaProject, List<String> packages) throws JavaModelException {
-		ArrayList<org.eclipse.jdt.core.ICompilationUnit> allUnits = new ArrayList<>();
-	    for (IPackageFragmentRoot root : javaProject.getPackageFragmentRoots()) {
-	        if (root.getKind() == IPackageFragmentRoot.K_SOURCE) {
-	            for (IJavaElement child : root.getChildren()) {
-	                if (child instanceof IPackageFragment) {
-	                    IPackageFragment pkg = (IPackageFragment) child;
-	                    if( packages != null && packages.contains(pkg.getElementName())) {
-		                    for (org.eclipse.jdt.core.ICompilationUnit unit : pkg.getCompilationUnits()) {
-	                    		allUnits.add(unit);
-		                    	try {
-			                    	unit.getChildren();
-		                    	} catch(JavaModelException t) {
-		                    		// ignore
-		                    	}
-		                    }
-	                    }
-	                }
-	            }
-	        }
-	    }
-
-		List<org.eclipse.jdt.core.ICompilationUnit> ret = new ArrayList<>();
-		for( org.eclipse.jdt.core.ICompilationUnit unit : allUnits ) {
-        	IType[] types = unit.getTypes();
-        	if( types != null && types.length > 1 ) {
-        		ret.add(unit);
-        	}
+	private static Set<ICompilationUnit> listCompilationUnitsWithMultipleTopLevelClasses_impl(IJavaProject javaProject, List<String> packages) throws JavaModelException {
+		var res = new HashSet<ICompilationUnit>();
+		var pattern = new SecondaryTypeDeclarationPattern();
+		var packs = new LinkedHashSet<IPackageFragment>();
+		for (IClasspathEntry entry : javaProject.getResolvedClasspath(false)) {
+			if (entry.getEntryKind() == IClasspathEntry.CPE_SOURCE) {
+				for (var pkgFragmentRoot : javaProject.findPackageFragmentRoots(entry)) {
+					for (var packName : packages) {
+						var pack = pkgFragmentRoot.getPackageFragment(packName);
+						if (pack != null && pack.exists()) {
+							packs.add(pack);
+						}
+					}
+				}
+			}
 		}
-	    return ret;
+		var scope = SearchEngine.createJavaSearchScope(packs.toArray(IJavaElement[]::new));
+		var requestor = new IndexQueryRequestor() {
+			@Override
+			public boolean acceptIndexMatch(String documentPath, SearchPattern indexRecord, SearchParticipant participant, AccessRuleSet access) {
+				try {
+					var docPath = new org.eclipse.core.runtime.Path(documentPath);
+					var pack = javaProject.findPackageFragment(docPath.removeLastSegments(1));
+					if (pack != null && pack.exists()) {
+						var u = pack.getCompilationUnit(docPath.lastSegment());
+						if (u != null && u.exists()) {
+							res.add(u);
+						}
+					}
+				} catch (JavaModelException ex) {
+					ILog.get().error(ex.getMessage(), ex);
+				}
+				return true;
+			}
+		};
+		// directly invoke index bypassing SearchEngine or JavaModelManager.secondaryTypes() because the other
+		// method try to get a lock on the index.monitor, and this cause a deadlock when the current operation
+		// is about indexing
+		SearchParticipant defaultSearchParticipant = SearchEngine.getDefaultSearchParticipant();
+		IndexLocation[] indexLocations = new IndexLocation[0];
+		if (defaultSearchParticipant instanceof JavaSearchParticipant javaSearchParticipant) {
+			indexLocations = javaSearchParticipant.selectIndexURLs(pattern, scope);
+		}
+		for (var location : indexLocations) {
+			var index = JavaModelManager.getIndexManager().getIndex(location);
+			if (index != null) {
+				try {
+					MatchLocator.findIndexMatches(pattern, index, requestor, defaultSearchParticipant, scope, null);
+				} catch (IOException e) {
+					ILog.get().error(e.getMessage(), e);
+				}
+			}
+		}
+		return res;
 	}
 
 	private List<String> replaceSafeSystemOption(List<String> options) {
