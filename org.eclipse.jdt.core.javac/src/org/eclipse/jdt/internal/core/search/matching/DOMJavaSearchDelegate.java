@@ -45,6 +45,7 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IOpenable;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.ISourceRange;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.SourceRange;
@@ -224,14 +225,18 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 			NodeSetWrapper wrapper = wrappedSets.get(possibleMatch.nodeSet);
 			for (org.eclipse.jdt.core.dom.ASTNode node : wrapper.trustedASTNodeLevels.keySet()) {
 				int level = wrapper.trustedASTNodeLevels.get(node);
-				SearchMatch match = toMatch(locator, node, level, possibleMatch);
-				if (match != null && match.getElement() != null) {
-					DOMPatternLocator locator2 = DOMPatternLocatorFactory.createWrapper(locator.patternLocator, locator.pattern);
-					locator2.setCurrentMatch(match);
-					locator2.setCurrentNode(node);
-					locator2.reportSearchMatch(locator, node, match);
-				}
+				createAndReportMatch(locator, node, level, possibleMatch);
 			}
+		}
+	}
+
+	private void createAndReportMatch(MatchLocator locator, ASTNode node, int level, PossibleMatch possibleMatch) throws CoreException {
+		SearchMatch match = toMatch(locator, node, level, possibleMatch);
+		if (match != null && match.getElement() != null) {
+			DOMPatternLocator locator2 = DOMPatternLocatorFactory.createWrapper(locator.patternLocator, locator.pattern);
+			locator2.setCurrentMatch(match);
+			locator2.setCurrentNode(node);
+			locator2.reportSearchMatch(locator, node, match);
 		}
 	}
 
@@ -470,7 +475,15 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 			}
 			IJavaElement localJavaElement = DOMASTNodeUtils.getLocalJavaElement(node);
 			if (!Objects.equals(localJavaElement, element)) {
-				ret.setLocalElement(localJavaElement);
+				boolean isAnonymous = false;
+				try {
+					isAnonymous = element instanceof IType && ((IType)element).isAnonymous();
+				} catch(JavaModelException jme) {
+					// ignore
+				}
+				if( !isAnonymous) {
+					ret.setLocalElement(localJavaElement);
+				}
 			}
 			if (node.getLocationInParent() == VariableDeclarationStatement.TYPE_PROPERTY && node.getParent() instanceof VariableDeclarationStatement stmt && stmt.fragments().size() > 1) {
 				ret.setOtherElements(((List<VariableDeclarationFragment>)stmt.fragments())

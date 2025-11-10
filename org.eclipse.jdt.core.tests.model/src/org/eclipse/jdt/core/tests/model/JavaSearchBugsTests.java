@@ -43,6 +43,7 @@ import org.eclipse.core.runtime.content.IContentType;
 import org.eclipse.jdt.core.*;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.search.*;
+import org.eclipse.jdt.core.tests.javac.JavacFailReason;
 import org.eclipse.jdt.core.tests.util.Util;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
@@ -68,6 +69,8 @@ import org.eclipse.jdt.internal.core.search.matching.MethodPattern;
 import org.eclipse.jdt.internal.core.search.matching.PatternLocator;
 import org.eclipse.jdt.internal.core.search.matching.TypeDeclarationPattern;
 import org.eclipse.jdt.internal.core.search.matching.TypeReferencePattern;
+import org.junit.Ignore;
+import org.junit.experimental.categories.Category;
 
 /**
  * Non-regression tests for bugs fixed in Java Search engine.
@@ -1489,6 +1492,7 @@ public void testBug80264_FieldsIgnoreBothTypes() throws CoreException, JavaModel
  * bug 80890: [search] Strange search engine behaviour
  * @see "https://bugs.eclipse.org/bugs/show_bug.cgi?id=80890"
  */
+@Category(value=Ignore.class) @JavacFailReason(cause=JavacFailReason.JAVAC_DEFICIENCY)
 public void testBug80890() throws CoreException, JavaModelException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b80890/A.java",
