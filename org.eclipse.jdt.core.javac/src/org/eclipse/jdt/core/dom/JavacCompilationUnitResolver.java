@@ -12,6 +12,11 @@ package org.eclipse.jdt.core.dom;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Reader;
+import java.io.Writer;
+import java.net.URI;
 import java.nio.CharBuffer;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,6 +37,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticListener;
@@ -47,6 +54,7 @@ import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.IProduct;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Platform;
+import org.eclipse.core.runtime.content.IContentType;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
@@ -1054,6 +1062,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			Map<JavaFileObject, File> fileObjectsToJars) {
 
 		Path sourceUnitPath = null;
+		boolean javaSourceUniqueExtension = false;
 		boolean storeAsClassFromJar = false;
 		if (!unitFile.getName().endsWith(".java") || sourceUnitFileName == null || sourceUnitFileName.length == 0) {
 			String uri1 = unitFile.toURI().toString().replaceAll("%7C", "/");
@@ -1061,6 +1070,14 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				String[] split= uri1.split("/");
 				String lastSegment = split[split.length-1].replace(".class", ".java");
 				sourceUnitPath = Path.of(lastSegment);
+			} else {
+				IContentType javaContentType = Platform.getContentTypeManager().getContentType(JavaCore.JAVA_SOURCE_CONTENT_TYPE);
+				String[] extensions = javaContentType.getFileSpecs(IContentType.FILE_EXTENSION_SPEC);
+				boolean matches = Arrays.asList(extensions).stream().filter(x -> uri1.endsWith("." + x)).findFirst().orElse(null) != null;
+				if( matches ) {
+					javaSourceUniqueExtension = true;
+					sourceUnitPath = Path.of(unitFile.toURI());
+				}
 			}
 			if( sourceUnitPath == null ) {
 				storeAsClassFromJar = true;
@@ -1080,13 +1097,73 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 		storeAsClassFromJar |= unitFile.getName().endsWith(".jar");
 		JavaFileObject fileObject = fileManager.getJavaFileObject(sourceUnitPath);
+		if( javaSourceUniqueExtension ) {
+			fileObject = new JavaFileObjectWrapper(fileObject);
+		}
 		if (storeAsClassFromJar && fileObjectsToJars != null) {
 			fileObjectsToJars.put(fileObject, unitFile);
 		}
 		return fileObject;
 	}
 
-
+	public static class JavaFileObjectWrapper implements JavaFileObject {
+		private JavaFileObject delegate;
+		public JavaFileObjectWrapper(JavaFileObject delegate) {
+			this.delegate = delegate;
+		}
+		@Override
+		public Kind getKind() {
+			return Kind.SOURCE;
+		}
+		@Override
+		public URI toUri() {
+			return delegate.toUri();
+		}
+		@Override
+		public String getName() {
+			return delegate.getName();
+		}
+		@Override
+		public InputStream openInputStream() throws IOException {
+			return delegate.openInputStream();
+		}
+		@Override
+		public boolean isNameCompatible(String simpleName, Kind kind) {
+			return delegate.isNameCompatible(simpleName, kind);
+		}
+		@Override
+		public OutputStream openOutputStream() throws IOException {
+			return delegate.openOutputStream();
+		}
+		@Override
+		public NestingKind getNestingKind() {
+			return delegate.getNestingKind();
+		}
+		@Override
+		public Reader openReader(boolean ignoreEncodingErrors) throws IOException {
+			return delegate.openReader(ignoreEncodingErrors);
+		}
+		@Override
+		public Modifier getAccessLevel() {
+			return delegate.getAccessLevel();
+		}
+		@Override
+		public CharSequence getCharContent(boolean ignoreEncodingErrors) throws IOException {
+			return delegate.getCharContent(ignoreEncodingErrors);
+		}
+		@Override
+		public Writer openWriter() throws IOException {
+			return delegate.openWriter();
+		}
+		@Override
+		public long getLastModified() {
+			return delegate.getLastModified();
+		}
+		@Override
+		public boolean delete() {
+			return delegate.delete();
+		}
+	};
 
 	public static void addSourcesWithMultipleTopLevelClasses(
 			org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] src,
