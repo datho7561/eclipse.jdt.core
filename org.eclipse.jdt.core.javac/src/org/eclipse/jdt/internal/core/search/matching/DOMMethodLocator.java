@@ -239,6 +239,9 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		if (!matchesExpectedJavaElement(expression)) {
 			return toResponse(IMPOSSIBLE_MATCH);
 		}
+		if( !this.pattern.findReferences ) {
+			return toResponse(IMPOSSIBLE_MATCH);
+		}
 		int level = IMPOSSIBLE_MATCH;
 		if (expression instanceof SuperMethodInvocation node) {
 			if (this.pattern.fineGrain != 0 && (this.pattern.fineGrain & IJavaSearchConstants.SUPER_REFERENCE) == 0) {
@@ -817,6 +820,10 @@ public class DOMMethodLocator extends DOMPatternLocator {
 
 
 		boolean isDecl = messageSend instanceof MethodDeclaration && invocationBinding.getMethodDeclaration() == invocationBinding;
+		boolean findOnlyDeclarations = this.pattern.findDeclarations && !this.pattern.findReferences;
+		if( findOnlyDeclarations && !isDecl ) {
+			return IMPOSSIBLE_MATCH;
+		}
 		int invocationLevel = matchMethod(messageSend, invocationBinding, skipVerif, isDecl);
 		int declarationLevel = IMPOSSIBLE_MATCH;
 		if (invocationLevel == IMPOSSIBLE_MATCH && !isDecl) {
