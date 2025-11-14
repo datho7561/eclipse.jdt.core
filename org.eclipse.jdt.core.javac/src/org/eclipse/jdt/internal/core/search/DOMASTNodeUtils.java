@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.core.search;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.jdt.core.IInitializer;
@@ -20,6 +21,7 @@ import org.eclipse.jdt.core.ISourceReference;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.AnnotationTypeMemberDeclaration;
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
@@ -85,31 +87,120 @@ public class DOMASTNodeUtils {
 		return getEnclosingJavaElement(node.getParent());
 	}
 
+
+	public static boolean annotationBetweenNodeAndLocalElement(ASTNode node) {
+		ASTNode working = node;
+		if( node == null )
+			return false;
+		boolean annotFound = false;
+		while(working != null ) {
+			annotFound |= working instanceof Annotation;
+			if (node instanceof VariableDeclaration )
+				return annotFound;
+			if (node instanceof VariableDeclarationStatement )
+				return annotFound;
+			if(node instanceof VariableDeclarationExpression)
+				return annotFound;
+			if (node instanceof TypeParameter typeParam)
+				return annotFound;
+			if (node instanceof AbstractTypeDeclaration
+					|| node instanceof MethodDeclaration
+					|| node instanceof FieldDeclaration
+					|| node instanceof Initializer
+					|| node instanceof ImportDeclaration
+					|| node instanceof PackageDeclaration
+					|| node instanceof CompilationUnit
+					|| node instanceof AnnotationTypeMemberDeclaration
+					|| node instanceof Initializer
+					|| node instanceof LambdaExpression
+					|| node.getLocationInParent() == FieldDeclaration.FRAGMENTS_PROPERTY)
+				return annotFound;
+			working = working.getParent();
+		}
+		return annotFound;
+	}
+
 	/**
 	 * @param node
 	 * @return an existing (in model) Java element enclosing the node
 	 */
 	public static IJavaElement getLocalJavaElement(ASTNode node) {
+		IJavaElement[] r = getLocalOrOtherJavaElements(node, true);
+		return r != null && r.length > 0 && r[0] != null ? r[0] : null;
+	}
+
+	public static IJavaElement[] getLocalOrOtherJavaElements(ASTNode node, boolean local) {
 		if (node == null) {
 			return null;
 		}
 		if (node instanceof VariableDeclaration variable) {
 			IVariableBinding vb = variable.resolveBinding();
 			if( vb != null )
-				return vb.getJavaElement();
+				return new IJavaElement[] {vb.getJavaElement()};
 		}
 		if (node instanceof VariableDeclarationStatement variable && !variable.fragments().isEmpty()) {
-			IVariableBinding vb =  ((List<VariableDeclarationFragment>)variable.fragments()).iterator().next().resolveBinding();
-			if( vb != null )
-				return vb.getJavaElement();
+			if( local ) {
+				IVariableBinding vb =  ((List<VariableDeclarationFragment>)variable.fragments()).iterator().next().resolveBinding();
+				if( vb != null )
+					return new IJavaElement[] {vb.getJavaElement()};
+			} else {
+				ArrayList<IJavaElement> ret = new ArrayList<>();
+				List<VariableDeclarationFragment> l1 = variable.fragments();
+				boolean first = true;
+				for( VariableDeclarationFragment v1 : l1 ) {
+					if( first ) {
+						first = false;
+						continue;
+					}
+					IVariableBinding vb = v1.resolveBinding();
+					if( vb != null ) {
+						IJavaElement e = vb.getJavaElement();
+						if( e != null ) {
+							ret.add(e);
+						}
+					}
+				}
+				return ret.toArray(new IJavaElement[ret.size()]);
+			}
 		}
 		if (node instanceof VariableDeclarationExpression variable && !variable.fragments().isEmpty()) {
-			IVariableBinding vb =  ((List<VariableDeclarationFragment>)variable.fragments()).iterator().next().resolveBinding();
-			if( vb != null )
-				return vb.getJavaElement();
+			if( local ) {
+				IVariableBinding vb =  ((List<VariableDeclarationFragment>)variable.fragments()).iterator().next().resolveBinding();
+				if( vb != null )
+					return new IJavaElement[] {vb.getJavaElement()};
+			} else {
+				ArrayList<IJavaElement> ret = new ArrayList<>();
+				List<VariableDeclarationFragment> l1 = variable.fragments();
+				boolean first = true;
+				for( VariableDeclarationFragment v1 : l1 ) {
+					if( first ) {
+						first = false;
+						continue;
+					}
+					IVariableBinding vb = v1.resolveBinding();
+					if( vb != null ) {
+						IJavaElement e = vb.getJavaElement();
+						if( e != null ) {
+							ret.add(e);
+						}
+					}
+				}
+				return ret.toArray(new IJavaElement[ret.size()]);
+			}
 		}
+
+        if (!local && node.getLocationInParent() == FieldDeclaration.TYPE_PROPERTY && node.getParent() instanceof FieldDeclaration stmt && stmt.fragments().size() > 1) {
+            return ((List<VariableDeclarationFragment>)stmt.fragments())
+                            .stream()
+                            .map(VariableDeclarationFragment::resolveBinding)
+                            .filter(x -> x != null)
+                            .map(IVariableBinding::getJavaElement)
+                            .filter(x -> x != null)
+                            .toArray(IJavaElement[]::new);
+        }
+
 		if (node instanceof TypeParameter typeParam) {
-			return typeParam.resolveBinding().getJavaElement();
+			return new IJavaElement[] { typeParam.resolveBinding().getJavaElement()};
 		}
 		if (node instanceof AbstractTypeDeclaration
 			|| node instanceof MethodDeclaration
@@ -122,9 +213,9 @@ public class DOMASTNodeUtils {
 			|| node instanceof Initializer
 			|| node instanceof LambdaExpression
 			|| node.getLocationInParent() == FieldDeclaration.FRAGMENTS_PROPERTY) {
-			return getEnclosingJavaElement(node);
+			return new IJavaElement[] { getEnclosingJavaElement(node) };
 		}
-		return getLocalJavaElement(node.getParent());
+		return getLocalOrOtherJavaElements(node.getParent(), local);
 	}
 
 	public static IJavaElement getDeclaringJavaElement(ASTNode key) {

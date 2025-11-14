@@ -462,48 +462,42 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 		}
 		if (node instanceof Type nt) {
 			//IBinding b = DOMASTNodeUtils.getBinding(nt);
-			IJavaElement element = DOMASTNodeUtils.getEnclosingJavaElement(node);
-			if (element instanceof LocalVariable) {
-				element = element.getParent();
+			IJavaElement enclosing = DOMASTNodeUtils.getEnclosingJavaElement(node);
+			if (enclosing instanceof LocalVariable) {
+				enclosing = enclosing.getParent();
 			}
-			TypeReferenceMatch ret = new TypeReferenceMatch(element, accuracy, node.getStartPosition(),
+			TypeReferenceMatch ret = new TypeReferenceMatch(enclosing, accuracy, node.getStartPosition(),
 					node.getLength(), DOMASTNodeUtils.insideDocComment(node), getParticipant(locator), resource);
 			if (nt.isParameterizedType()) {
 				if (((ParameterizedType) nt).typeArguments().size() == 0) {
 					ret.setRaw(true);
 				}
 			}
-			IJavaElement localJavaElement = DOMASTNodeUtils.getLocalJavaElement(node);
-			if (!Objects.equals(localJavaElement, element)) {
-				boolean isAnonymous = false;
-				try {
-					isAnonymous = element instanceof IType && ((IType)element).isAnonymous();
-				} catch(JavaModelException jme) {
-					// ignore
-				}
-				if( !isAnonymous) {
-					ret.setLocalElement(localJavaElement);
+			IJavaElement local = DOMASTNodeUtils.getLocalJavaElement(node);
+			IJavaElement[] otherJavaElements = DOMASTNodeUtils.getLocalOrOtherJavaElements(node, false);
+			//boolean localElementIsWithinAnnotation = DOMASTNodeUtils.annotationBetweenNodeAndLocalElement(node);
+			if (!Objects.equals(local, enclosing)) {
+				if( !isAnonymousIType(enclosing)) {
+					ret.setLocalElement(local);
 				}
 			}
-			if (node.getLocationInParent() == VariableDeclarationStatement.TYPE_PROPERTY && node.getParent() instanceof VariableDeclarationStatement stmt && stmt.fragments().size() > 1) {
-				ret.setOtherElements(((List<VariableDeclarationFragment>)stmt.fragments())
-						.subList(1, stmt.fragments().size())
-						.stream()
-						.map(VariableDeclarationFragment::resolveBinding)
-						.filter(x -> x != null)
-						.map(IVariableBinding::getJavaElement)
-						.filter(x -> x != null)
-						.toArray(IJavaElement[]::new));
+			ArrayList<IJavaElement> otherElements = new ArrayList<>();
+			for( int i = 0; i < otherJavaElements.length; i++ ) {
+				if (!Objects.equals(otherJavaElements[i], enclosing)) {
+					boolean isAnonymous = false;
+					try {
+						isAnonymous = enclosing instanceof IType && ((IType)enclosing).isAnonymous();
+					} catch(JavaModelException jme) {
+						// ignore
+					}
+					if( !isAnonymous) {
+						if( local == null || !local.equals(otherJavaElements[i]))
+						otherElements.add(otherJavaElements[i]);
+					}
+				}
 			}
-			if (node.getLocationInParent() == FieldDeclaration.TYPE_PROPERTY && node.getParent() instanceof FieldDeclaration stmt && stmt.fragments().size() > 1) {
-				ret.setOtherElements(((List<VariableDeclarationFragment>)stmt.fragments())
-						.subList(1, stmt.fragments().size())
-						.stream()
-						.map(VariableDeclarationFragment::resolveBinding)
-						.filter(x -> x != null)
-						.map(IVariableBinding::getJavaElement)
-						.filter(x -> x != null)
-						.toArray(IJavaElement[]::new));
+			if( otherElements.size() > 0 ) {
+				ret.setOtherElements(otherElements.toArray(new IJavaElement[otherElements.size()]));
 			}
 			return ret;
 		}
@@ -601,6 +595,16 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 			return toMatch(locator, node.getParent(), accuracy, possibleMatch);
 		}
 		return null;
+	}
+
+	private boolean isAnonymousIType(IJavaElement type) {
+		boolean isAnonymous = false;
+		try {
+			isAnonymous = type instanceof IType && ((IType)type).isAnonymous();
+		} catch(JavaModelException jme) {
+			// ignore
+		}
+		return isAnonymous;
 	}
 
 	private String findRawTextForNodesCompilationUnit(ASTNode node) {
