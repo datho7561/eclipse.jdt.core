@@ -828,15 +828,19 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		}
 		int invocationLevel = matchMethod(messageSend, invocationBinding, skipVerif, isDecl);
 		int declarationLevel = IMPOSSIBLE_MATCH;
+		int invocOrDeclLevel = invocationLevel;
 		if (invocationLevel == IMPOSSIBLE_MATCH && !isDecl) {
 			declarationBinding = invocationBinding.getMethodDeclaration();
 			declarationLevel = matchMethod(messageSend, declarationBinding, skipVerif, true);
 			if (declarationLevel == IMPOSSIBLE_MATCH)
 				return IMPOSSIBLE_MATCH;
 			invocationOrDeclarationBinding = declarationBinding;
+			invocOrDeclLevel = invocationLevel == IMPOSSIBLE_MATCH ? declarationLevel : invocationLevel;
+			if( !invocationBinding.isRawMethod() && this.locator.pattern.hasTypeParameters()) {
+				invocOrDeclLevel = findWeakerLevel(invocOrDeclLevel, ERASURE_MATCH);
+			}
 		}
 
-		int invocOrDeclLevel = invocationLevel == IMPOSSIBLE_MATCH ? declarationLevel : invocationLevel;
 		if (invocationBinding.isRawMethod() && (this.locator.pattern.hasTypeArguments() || this.locator.pattern.hasTypeParameters())) {
 			invocOrDeclLevel = findWeakerLevel(invocOrDeclLevel, ERASURE_MATCH);
 		}

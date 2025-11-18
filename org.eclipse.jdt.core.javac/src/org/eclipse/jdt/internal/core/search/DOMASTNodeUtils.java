@@ -189,7 +189,11 @@ public class DOMASTNodeUtils {
 			}
 		}
 
-        if (!local && node.getLocationInParent() == FieldDeclaration.TYPE_PROPERTY && node.getParent() instanceof FieldDeclaration stmt && stmt.fragments().size() > 1) {
+        if (!local
+        		&& (node.getLocationInParent() == FieldDeclaration.TYPE_PROPERTY
+        			|| node.getLocationInParent() == FieldDeclaration.MODIFIERS_PROPERTY
+        			|| node.getLocationInParent() == FieldDeclaration.MODIFIERS2_PROPERTY)
+        		&& node.getParent() instanceof FieldDeclaration stmt && stmt.fragments().size() > 1) {
             return ((List<VariableDeclarationFragment>)stmt.fragments())
                             .stream()
                             .map(VariableDeclarationFragment::resolveBinding)
