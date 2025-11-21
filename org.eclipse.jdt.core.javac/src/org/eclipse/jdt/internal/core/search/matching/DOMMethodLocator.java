@@ -1323,7 +1323,8 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		IMethodBinding methodBinding = nodeBinding instanceof IMethodBinding mb2 ? mb2 : null;
 		boolean isMethodBinding = methodBinding != null;
 		boolean mbIsRaw = isMethodBinding && methodBinding.isRawMethod();
-		boolean mbDeclaringIsRaw = isMethodBinding && methodBinding.getDeclaringClass().isRawType();
+		ITypeBinding declaring = methodBinding.getDeclaringClass();
+		boolean mbDeclaringIsRaw = isMethodBinding && declaring.isRawType();
 		boolean mbIsGeneric = isMethodBinding && methodBinding.isGenericMethod();
 		boolean mbIsParameterized = isMethodBinding && methodBinding.isParameterizedMethod();
 		boolean patternHasMethodArgs = pattern.hasMethodArguments();
@@ -1365,10 +1366,14 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		if (isMethodBinding
 			&& (mbIsRaw || mbDeclaringIsRaw)
 			&& (patternHasMethodArgs || patternHasTypeArgs)) {
-			int rule = match.getRule();
-			rule &= ~SearchPattern.R_FULL_MATCH;
-			rule |= SearchPattern.R_EQUIVALENT_MATCH | SearchPattern.R_ERASURE_MATCH;
-			match.setRule(rule);
+			if( mbDeclaringIsRaw ) {
+				updateMatch(declaring, this.pattern.getTypeArguments(), this.pattern.hasTypeParameters(), 0);
+			} else {
+				int rule = match.getRule();
+				rule &= ~SearchPattern.R_FULL_MATCH;
+				rule |= SearchPattern.R_EQUIVALENT_MATCH | SearchPattern.R_ERASURE_MATCH;
+				match.setRule(rule);
+			}
 		}
 		if( preferParamaterizedNode() ) {
 			if( node instanceof MethodInvocation iv) {
