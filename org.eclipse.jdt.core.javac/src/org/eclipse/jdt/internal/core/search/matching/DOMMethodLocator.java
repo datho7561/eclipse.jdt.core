@@ -1324,6 +1324,7 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		boolean isMethodBinding = methodBinding != null;
 		boolean mbIsRaw = isMethodBinding && methodBinding.isRawMethod();
 		ITypeBinding declaring = isMethodBinding ? methodBinding.getDeclaringClass() : null;
+		boolean delcaringIsParameterized = declaring == null ? false : declaring.isParameterizedType();
 		boolean mbDeclaringIsRaw = isMethodBinding && declaring.isRawType();
 		boolean mbIsGeneric = isMethodBinding && methodBinding.isGenericMethod();
 		boolean mbIsParameterized = isMethodBinding && methodBinding.isParameterizedMethod();
@@ -1364,11 +1365,10 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			match.setRule(rule);
 		}
 		if (isMethodBinding
-			&& (mbIsRaw || mbDeclaringIsRaw)
 			&& (patternHasMethodArgs || patternHasTypeArgs)) {
-			if( mbDeclaringIsRaw ) {
+			if( mbDeclaringIsRaw || delcaringIsParameterized) {
 				updateMatch(declaring, this.pattern.getTypeArguments(), this.pattern.hasTypeParameters(), 0);
-			} else {
+			} else if( mbIsRaw ) {
 				int rule = match.getRule();
 				rule &= ~SearchPattern.R_FULL_MATCH;
 				rule |= SearchPattern.R_EQUIVALENT_MATCH | SearchPattern.R_ERASURE_MATCH;
