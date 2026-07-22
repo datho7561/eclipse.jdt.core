@@ -33,7 +33,6 @@ import org.eclipse.jdt.core.search.SearchDocument;
 import org.eclipse.jdt.internal.compiler.CompilationResult;
 import org.eclipse.jdt.internal.compiler.DefaultErrorHandlingPolicies;
 import org.eclipse.jdt.internal.compiler.ISourceElementRequestor;
-import org.eclipse.jdt.internal.compiler.SourceElementParser;
 import org.eclipse.jdt.internal.compiler.ast.ASTNode;
 import org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration;
@@ -105,40 +104,55 @@ public class SourceIndexer extends AbstractIndexer implements ITypeRequestor, Su
 		if (disabledForFile()) {
 			return;
 		}
-		if (usedDomBasedIndexing()) {
-			indexDocumentFromDOM();
-			return;
-		}
-		// Create a new Parser
-		String documentPath = this.document.getPath();
-		SourceElementParser parser = this.document.getParser();
-		if (parser == null) {
-			IPath path = new Path(documentPath);
-			IProject project = ResourcesPlugin.getWorkspace().getRoot().getProject(path.segment(0));
-			parser = JavaModelManager.getJavaModelManager().indexManager.getSourceElementParser(JavaCore.create(project), this.requestor);
-		} else {
-			parser.setRequestor(this.requestor);
-		}
 
-		// Launch the parser
+		indexFromTurbine();
+
+//		if (usedDomBasedIndexing()) {
+//			indexDocumentFromDOM();
+//			return;
+//		}
+//		// Create a new Parser
+//		String documentPath = this.document.getPath();
+//		SourceElementParser parser = this.document.getParser();
+//		if (parser == null) {
+//			IPath path = new Path(documentPath);
+//			IProject project = ResourcesPlugin.getWorkspace().getRoot().getProject(path.segment(0));
+//			parser = JavaModelManager.getJavaModelManager().indexManager.getSourceElementParser(JavaCore.create(project), this.requestor);
+//		} else {
+//			parser.setRequestor(this.requestor);
+//		}
+//
+//		// Launch the parser
+//		char[] source = null;
+//		char[] name = null;
+//		try {
+//			source = this.document.getCharContents();
+//			name = documentPath.toCharArray();
+//		} catch(Exception e){
+//			// ignore
+//		}
+//		if (source == null || name == null) return; // could not retrieve document info (e.g. resource was discarded)
+//		this.compilationUnit = new CompilationUnit(source, name);
+//		try {
+//			if (parser.parseCompilationUnit(this.compilationUnit, true, null).hasFunctionalTypes())
+//				this.document.requireIndexingResolvedDocument();
+//		} catch (Exception e) {
+//			if (JobManager.VERBOSE) {
+//				trace("", e); //$NON-NLS-1$
+//			}
+//		}
+	}
+
+	private void indexFromTurbine() {
+		String documentPath = this.document.getPath();
 		char[] source = null;
-		char[] name = null;
 		try {
 			source = this.document.getCharContents();
-			name = documentPath.toCharArray();
-		} catch(Exception e){
+		} catch (Exception e) {
 			// ignore
 		}
-		if (source == null || name == null) return; // could not retrieve document info (e.g. resource was discarded)
-		this.compilationUnit = new CompilationUnit(source, name);
-		try {
-			if (parser.parseCompilationUnit(this.compilationUnit, true, null).hasFunctionalTypes())
-				this.document.requireIndexingResolvedDocument();
-		} catch (Exception e) {
-			if (JobManager.VERBOSE) {
-				trace("", e); //$NON-NLS-1$
-			}
-		}
+		var compUnit = com.google.turbine.parse.Parser.parse(new com.google.turbine.diag.SourceFile(documentPath, new String(source)));
+		compUnit.accept(null, null);
 	}
 
 	@Override

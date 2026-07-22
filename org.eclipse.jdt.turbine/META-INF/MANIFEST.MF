@@ -1,0 +1,12 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Google Turbine
+Bundle-SymbolicName: org.eclipse.jdt.turbine
+Bundle-Version: 0.13.1.qualifier
+Bundle-Vendor: Eclipse JDT
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Bundle-ClassPath: ./lib/turbine-1.15.0.jar
+Export-Package: com.google.turbine.parse,
+ com.google.turbine.diag,
+ com.google.turbine.tree
+Automatic-Module-Name: org.eclipse.jdt.turbine
